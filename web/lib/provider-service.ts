@@ -21,6 +21,14 @@ export async function centralDoors(accountId: string) {
   if (!isSuccess(communities)) throw new Error(upstreamMessage(communities, "小区查询失败"));
   const codes = communityCodes(communities.data); const doors = [];
   for (const communityId of communityIds(communities.data).slice(0, 20)) {
+    let home: Awaited<ReturnType<typeof providerPost>> | null = null;
+    try {
+      home = await providerPost("mobile", HOME_DOORS_PATH, { communityId }, { ...options, encoding: "multipart" });
+    } catch {
+      // The complete list remains usable when the home-list request is unavailable.
+    }
+    const featured = home && isSuccess(home) ? normalizeDoors(home.data, communityId, codes.get(communityId)) : [];
+    const featuredIds = new Set(featured.map((door) => `${door.communityId}:${door.doorControlId}`));
     let all: Awaited<ReturnType<typeof providerPost>> | null = null;
     try {
       all = await providerPost("mobile", ALL_DOORS_PATH, { communityId }, { ...options, encoding: "multipart" });
@@ -28,16 +36,18 @@ export async function centralDoors(accountId: string) {
       // Fall through to the already verified home-list endpoint below.
     }
     if (all && isSuccess(all)) {
-      doors.push(...normalizeDoors(all.data, communityId, codes.get(communityId)));
+      doors.push(...normalizeDoors(all.data, communityId, codes.get(communityId)).map((door) => ({
+        ...door,
+        providerFeatured: featuredIds.has(`${door.communityId}:${door.doorControlId}`),
+      })));
       continue;
     }
 
     // Older provider deployments may not expose the complete-list endpoint.
     // Preserve the previously verified home-list behavior instead of erasing
     // the account's cached doors when that happens.
-    const home = await providerPost("mobile", HOME_DOORS_PATH, { communityId }, { ...options, encoding: "multipart" });
-    if (!isSuccess(home)) throw new Error(upstreamMessage(home, "门禁查询失败"));
-    doors.push(...normalizeDoors(home.data, communityId, codes.get(communityId)));
+    if (!home || !isSuccess(home)) throw new Error(upstreamMessage(home || {}, "门禁查询失败"));
+    doors.push(...featured.map((door) => ({ ...door, providerFeatured: true })));
   }
   const result = dedupeDoors(doors); await persistCentralSession(accountId, session); await saveDoors(accountId, result); return result;
 }

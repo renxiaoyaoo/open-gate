@@ -28,6 +28,8 @@ export const gateDoors = sqliteTable("doors", {
   mac: text("mac"),
   deviceModel: text("device_model"),
   passwordSupported: integer("password_supported", { mode: "boolean" }).notNull().default(false),
+  providerFeatured: integer("provider_featured", { mode: "boolean" }).notNull().default(false),
+  selected: integer("selected", { mode: "boolean" }),
   refreshedAt: integer("refreshed_at").notNull(),
 }, (table) => [
   uniqueIndex("doors_public_id").on(table.publicId),

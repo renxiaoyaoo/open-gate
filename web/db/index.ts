@@ -27,7 +27,7 @@ async function createNodeDatabase(): Promise<Database> {
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, mobile_fingerprint TEXT UNIQUE, mobile_mask TEXT NOT NULL, display_name TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions (account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE, encrypted_state TEXT NOT NULL, verified_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS doors (public_id TEXT UNIQUE, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, community_id INTEGER NOT NULL, door_control_id INTEGER NOT NULL, name TEXT NOT NULL, community_name TEXT, community_code TEXT, mac TEXT, device_model TEXT, password_supported INTEGER NOT NULL DEFAULT 0, refreshed_at INTEGER NOT NULL, UNIQUE(account_id, community_id, door_control_id));
+CREATE TABLE IF NOT EXISTS doors (public_id TEXT UNIQUE, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, community_id INTEGER NOT NULL, door_control_id INTEGER NOT NULL, name TEXT NOT NULL, community_name TEXT, community_code TEXT, mac TEXT, device_model TEXT, password_supported INTEGER NOT NULL DEFAULT 0, provider_featured INTEGER NOT NULL DEFAULT 0, selected INTEGER, refreshed_at INTEGER NOT NULL, UNIQUE(account_id, community_id, door_control_id));
 CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT, action TEXT NOT NULL, target TEXT, success INTEGER NOT NULL, message TEXT, idempotency_key TEXT, created_at INTEGER NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS audit_account_action_idempotency ON audit_logs(account_id, action, idempotency_key);
 `;

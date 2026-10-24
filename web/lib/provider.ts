@@ -187,7 +187,7 @@ export function communityIds(payload: unknown): number[] {
 }
 
 const PASSWORD_MODELS = new Set(["QLG2020-R8", "QL21D-26JT", "QLG19-C215", "QLL19-C32", "21D-AD", "QL23D-2623", "QL22D-A", "23D-2623A", "QLG2020-68A"]);
-export type Door = { doorControlId: number; communityId: number; name: string; communityName?: string; communityCode?: string; mac?: string; deviceModel?: string; passwordSupported?: boolean };
+export type Door = { doorControlId: number; communityId: number; name: string; communityName?: string; communityCode?: string; mac?: string; deviceModel?: string; passwordSupported?: boolean; providerFeatured?: boolean };
 export function communityCodes(payload: unknown): Map<number, string> {
   const found = new Map<number, string>();
   walk(payload, (item) => {
