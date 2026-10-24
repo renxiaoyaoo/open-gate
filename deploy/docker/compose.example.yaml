@@ -1,0 +1,13 @@
+services:
+  open-gate:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    env_file: ../../web/.env.local
+    volumes:
+      - open-gate-data:/app/web/data
+    ports:
+      - "3000:3000"
+
+volumes:
+  open-gate-data:

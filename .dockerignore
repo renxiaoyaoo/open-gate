@@ -1,0 +1,10 @@
+.git
+**/node_modules
+**/.next
+**/dist
+**/.env*
+!web/.env.example
+artifacts
+analysis
+runtime
+logs

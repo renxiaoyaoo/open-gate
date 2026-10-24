@@ -1,0 +1,48 @@
+openapi: 3.1.0
+info:
+  title: OpenGate API
+  version: 1.0.0
+  description: Provider-neutral, multi-account access hub. Account ownership and upstream identifiers stay inside the service boundary.
+servers:
+  - url: https://your-open-gate.example/api/v1
+paths:
+  /doors:
+    get:
+      summary: List aggregated doors
+      responses: { "200": { description: Opaque door list } }
+  /doors/{doorKey}/open:
+    post:
+      summary: Open a door
+      parameters:
+        - { $ref: "#/components/parameters/doorKey" }
+        - { name: Idempotency-Key, in: header, required: false, schema: { type: string } }
+      responses: { "200": { description: Provider request completed } }
+  /doors/{doorKey}/password:
+    get:
+      summary: Get a temporary access code when supported
+      parameters: [{ $ref: "#/components/parameters/doorKey" }]
+      responses: { "200": { description: Temporary code } }
+  /accounts:
+    get:
+      summary: List signed-in accounts
+      description: Returns only an opaque ID and display name.
+      responses: { "200": { description: Account list } }
+  /accounts/{accountHandle}:
+    delete:
+      summary: Remove an account and its cached access data
+      parameters: [{ $ref: "#/components/parameters/accountHandle" }]
+      responses: { "200": { description: Removed } }
+  /accounts/{accountHandle}/sms:
+    post:
+      summary: Request a one-time login code
+      parameters: [{ $ref: "#/components/parameters/accountHandle" }]
+      responses: { "200": { description: Accepted by provider } }
+  /accounts/{accountHandle}/login:
+    post:
+      summary: Add or refresh an account session
+      parameters: [{ $ref: "#/components/parameters/accountHandle" }]
+      responses: { "200": { description: Signed in } }
+components:
+  parameters:
+    accountHandle: { name: accountHandle, in: path, required: true, schema: { type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$" } }
+    doorKey: { name: doorKey, in: path, required: true, schema: { type: string, format: uuid } }

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `gate_audit_account_action_idempotency` ON `audit_logs` (`account_id`,`action`,`idempotency_key`);

@@ -1,0 +1,47 @@
+# Downloaded binaries and reverse-engineering output are reproducible local data.
+/artifacts/
+/analysis/
+/runtime/
+/.apktool-framework/
+/.jadx/
+
+# Android / Flutter local and generated state.
+.fvmrc
+.metadata
+analysis_options.yaml
+pubspec.lock
+pubspec.yaml
+test/
+!/web/test/
+!/web/test/**
+android/
+ios/
+lib/
+!/web/lib/
+!/web/lib/**
+.gradle/
+.dart_tool/
+.fvm/
+build/
+local.properties
+
+# Signing, credentials, captures, and local overrides.
+*.jks
+*.keystore
+key.properties
+.env
+.env.*
+web/wrangler.production.jsonc
+web/data/
+*.pcap
+*.pcapng
+*.har
+
+# macOS and IDE state.
+.DS_Store
+.idea/
+*.iml
+DerivedData/
+
+# Local runtime and investigation logs.
+logs/

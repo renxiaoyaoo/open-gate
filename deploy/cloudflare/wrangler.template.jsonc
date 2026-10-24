@@ -1,0 +1,17 @@
+{
+  "name": "open-gate",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "rules": [{ "type": "ESModule", "globs": ["**/*.js", "**/*.mjs"] }],
+  "vars": { "OPENGATE_API_ENABLED": "0" },
+  "assets": { "directory": "dist/client" },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "__DATABASE_NAME__",
+    "database_id": "__DATABASE_ID__",
+    "migrations_dir": "drizzle"
+  }],
+  "observability": { "enabled": true }
+}
