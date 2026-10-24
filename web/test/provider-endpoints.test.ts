@@ -9,7 +9,7 @@ process.env.OPENGATE_PROVIDER_SIGNING_KEY = "test-signing-key";
 process.env.OPENGATE_PROVIDER_MOBILE_URL = "https://mobile.provider.example/api/";
 process.env.OPENGATE_PROVIDER_APP_URL = "https://app.provider.example/";
 process.env.OPENGATE_PROVIDER_GATEWAY_URL = "https://gateway.provider.example/";
-const { ALL_DOORS_PATH, HOME_DOORS_PATH, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, encryptMobile, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
+const { ALL_DOORS_PATH, HOME_DOORS_PATH, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, encryptMobile, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
 const { publicDoor } = await import("../lib/public-door.ts");
 const { personalDisplayName } = await import("../lib/account-name.ts");
 
@@ -181,6 +181,36 @@ test("authenticated mobile signatures use but do not transmit the session token"
   const body = signMobileBody({}, { nonce: "54321", timestamp: 1761111111111, version: "5.3.0", token: "session" });
   assert.equal(body.token, undefined);
   assert.equal(body.sign, createHash("md5").update("nonce=54321&timestamp=1761111111111&token=session&version=5.3.0&key=test-signing-key").digest("hex").toUpperCase());
+});
+
+test("doorSort keeps list on the wire but excludes it from the official signature", () => {
+  const list = [{ commondoorControlIds: [1], gatedoorControlIds: [2], buildingDoorList: [], customDoorList: [] }];
+  const body = signMobileBody(
+    { list, method: "doorSort", commId: 8, gateDoorColor: -1, buildingDoorColor: -1, customDoorColor: -1 },
+    { nonce: "12345", timestamp: 1761111111111, version: "5.3.0", token: "session", exclude: ["list"] },
+  );
+  assert.deepEqual(body.list, list);
+  assert.equal(body.sign, createHash("md5").update("buildingDoorColor=-1&commId=8&customDoorColor=-1&gateDoorColor=-1&method=doorSort&nonce=12345&timestamp=1761111111111&token=session&version=5.3.0&key=test-signing-key").digest("hex").toUpperCase());
+});
+
+test("rebuilds the provider doorSort groups when a common door is added or removed", () => {
+  const payload = {
+    gateDoorList: [{ doorControlId: 10 }],
+    buildingDoorList: [{ doorControlId: 20 }],
+    customDoorList: [{ doorControlId: 30 }],
+    commonlyUsedDoor: { first: { doorControlId: 40, doorControlUsefor: "大门" } },
+    gateDoorColor: 1,
+    buildingDoorColor: 2,
+    customDoorColor: 3,
+  };
+  assert.deepEqual(doorSortBody(payload, 8, 20, true), {
+    list: [{ commondoorControlIds: [40, 20], gatedoorControlIds: [10], buildingDoorList: [], customDoorList: [30] }],
+    method: "doorSort", commId: 8, gateDoorColor: 1, buildingDoorColor: 2, customDoorColor: 3,
+  });
+  assert.deepEqual(doorSortBody(payload, 8, 40, false), {
+    list: [{ commondoorControlIds: [], gatedoorControlIds: [10, 40], buildingDoorList: [20], customDoorList: [30] }],
+    method: "doorSort", commId: 8, gateDoorColor: 1, buildingDoorColor: 2, customDoorColor: 3,
+  });
 });
 
 test("encrypts a mobile number with AES-128-ECB PKCS#7", () => {

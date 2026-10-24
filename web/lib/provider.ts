@@ -35,7 +35,7 @@ export function signHeaders(params: JsonMap): Record<string, string> {
   return { ...base, sign: createHash("md5").update(`${canonical}&appsecret=${APP_SECRET}`).digest("hex").toUpperCase() };
 }
 
-type MobileSignOptions = { nonce?: string; timestamp?: number; token?: string; version?: string };
+type MobileSignOptions = { nonce?: string; timestamp?: number; token?: string; version?: string; exclude?: string[] };
 
 /** Build the provider's signed mobile request body. */
 export function signMobileBody(params: JsonMap, options: MobileSignOptions = {}): JsonMap {
@@ -49,7 +49,9 @@ export function signMobileBody(params: JsonMap, options: MobileSignOptions = {})
     nonce,
   };
   const result: JsonMap = { ...params, ...fixed };
+  const excluded = new Set(options.exclude ?? []);
   const canonical = Object.keys(result)
+    .filter((key) => !excluded.has(key))
     .sort()
     .map((key) => `${key}=${String(result[key] ?? "")}`)
     .join("&");
@@ -109,10 +111,10 @@ export function cookieHeader(context: ProviderRequestContext) {
   return Object.entries(context.cookies).map(([name, value]) => `${name}=${value}`).join("; ");
 }
 
-export async function providerPost(service: ProviderService, path: string, body: JsonMap, options?: { sessionId?: string; signingToken?: string | null; signing?: "legacy-header" | "mobile-body"; openId?: string; encoding?: "json" | "form" | "multipart" | "query"; context?: ProviderRequestContext }) {
+export async function providerPost(service: ProviderService, path: string, body: JsonMap, options?: { sessionId?: string; signingToken?: string | null; signing?: "legacy-header" | "mobile-body"; signingExclude?: string[]; openId?: string; encoding?: "json" | "form" | "multipart" | "query"; context?: ProviderRequestContext }) {
   const url = providerUrl(service, path);
   const signingToken = options?.signingToken === undefined ? options?.sessionId : options.signingToken ?? undefined;
-  const requestBody = options?.signing === "mobile-body" ? signMobileBody(body, { token: signingToken }) : body;
+  const requestBody = options?.signing === "mobile-body" ? signMobileBody(body, { token: signingToken, exclude: options.signingExclude }) : body;
   const signedHeaders = options?.signing === "legacy-header" ? signHeaders(body) : {};
   const encoding = options?.encoding ?? "json";
   const headers: Record<string, string> = {
@@ -188,6 +190,80 @@ export function communityIds(payload: unknown): number[] {
 
 const PASSWORD_MODELS = new Set(["QLG2020-R8", "QL21D-26JT", "QLG19-C215", "QLL19-C32", "21D-AD", "QL23D-2623", "QL22D-A", "23D-2623A", "QLG2020-68A"]);
 export type Door = { doorControlId: number; communityId: number; name: string; communityName?: string; communityCode?: string; mac?: string; deviceModel?: string; passwordSupported?: boolean; providerFeatured?: boolean };
+
+type DoorSortCategory = "gate" | "building" | "custom";
+type DoorSortState = {
+  common: number[];
+  gate: number[];
+  building: number[];
+  custom: number[];
+  categories: Map<number, DoorSortCategory>;
+  gateDoorColor: number;
+  buildingDoorColor: number;
+  customDoorColor: number;
+};
+
+function safeDoorIds(value: unknown) {
+  const ids: number[] = [];
+  walk(value, (item) => {
+    const id = Number(item.doorControlId ?? item.doorId);
+    if (Number.isSafeInteger(id) && id > 0 && !ids.includes(id)) ids.push(id);
+  });
+  return ids;
+}
+
+function doorUseforCategory(value: unknown): DoorSortCategory | undefined {
+  if (value === "大门") return "gate";
+  if (value === "单元门或楼栋门") return "building";
+  if (value === "其它") return "custom";
+  return undefined;
+}
+
+/** Recover the provider's door-sort state from queryAllUserDoorByCache. */
+export function doorSortState(payload: unknown): DoorSortState {
+  let source: JsonMap | null = null;
+  walk(payload, (item) => {
+    if (!source && ("commonlyUsedDoor" in item || "gateDoorList" in item || "buildingDoorList" in item || "customDoorList" in item)) source = item;
+  });
+  if (!source) throw new UpstreamError("门禁分类数据缺失，请刷新后重试");
+  const record = source as JsonMap;
+  const gate = safeDoorIds(record.gateDoorList);
+  const building = safeDoorIds(record.buildingDoorList);
+  const custom = safeDoorIds(record.customDoorList);
+  const common = safeDoorIds(record.commonlyUsedDoor);
+  const categories = new Map<number, DoorSortCategory>();
+  gate.forEach((id) => categories.set(id, "gate"));
+  building.forEach((id) => categories.set(id, "building"));
+  custom.forEach((id) => categories.set(id, "custom"));
+  walk(record.commonlyUsedDoor, (item) => {
+    const id = Number(item.doorControlId ?? item.doorId);
+    const category = doorUseforCategory(item.doorControlUsefor);
+    if (Number.isSafeInteger(id) && id > 0 && category) categories.set(id, category);
+  });
+  const color = (key: string) => Number.isInteger(Number(record[key])) ? Number(record[key]) : -1;
+  return { common, gate, building, custom, categories, gateDoorColor: color("gateDoorColor"), buildingDoorColor: color("buildingDoorColor"), customDoorColor: color("customDoorColor") };
+}
+
+/** Build the exact body used by the provider's homepage key editor. */
+export function doorSortBody(payload: unknown, communityId: number, doorControlId: number, selected: boolean): JsonMap {
+  if (!Number.isSafeInteger(communityId) || communityId <= 0 || !Number.isSafeInteger(doorControlId) || doorControlId <= 0) throw new UpstreamError("门禁参数无效");
+  const state = doorSortState(payload);
+  const category = state.categories.get(doorControlId);
+  if (!category) throw new UpstreamError("无法识别该门禁的官方分类");
+  const without = (ids: number[]) => ids.filter((id) => id !== doorControlId);
+  const common = without(state.common);
+  const groups = { gate: without(state.gate), building: without(state.building), custom: without(state.custom) };
+  if (selected) common.push(doorControlId);
+  else groups[category].push(doorControlId);
+  return {
+    list: [{ commondoorControlIds: common, gatedoorControlIds: groups.gate, buildingDoorList: groups.building, customDoorList: groups.custom }],
+    method: "doorSort",
+    commId: communityId,
+    gateDoorColor: state.gateDoorColor,
+    buildingDoorColor: state.buildingDoorColor,
+    customDoorColor: state.customDoorColor,
+  };
+}
 export function communityCodes(payload: unknown): Map<number, string> {
   const found = new Map<number, string>();
   walk(payload, (item) => {
