@@ -1,4 +1,4 @@
-import { audit, getDoorByPublicId, loadCentralSession, persistCentralSession, saveCentralSession, saveDoors, type CentralSession } from "./central";
+import { audit, getDoorByPublicId, loadCentralSession, persistCentralSession, saveCentralSession, saveDoors, updateDoorSelection, type CentralSession } from "./central";
 import { ALL_DOORS_PATH, HOME_DOORS_PATH, communityCodes, communityIds, dedupeDoors, deviceId, doorSortBody, encryptMobile, isSuccess, loginCredential, normalizeDoors, providerPost, upstreamMessage } from "./provider";
 import { personalDisplayName } from "./account-name";
 
@@ -63,6 +63,6 @@ export async function setProviderDoorSelected(publicId: string, selected: boolea
   const saved = await providerPost("mobile", "app/user/v1/doorSort", body, { ...options, encoding: "json", signingExclude: ["list"] });
   if (!isSuccess(saved)) throw new Error(upstreamMessage(saved, "常用门禁保存失败"));
   await persistCentralSession(door.accountId, session);
+  await updateDoorSelection(publicId, selected);
   await audit(door.accountId, "door.selection", publicId, true, selected ? "已加入官方常用门禁" : "已移出官方常用门禁");
-  await centralDoors(door.accountId);
 }

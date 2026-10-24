@@ -36,6 +36,11 @@ export const gateDoors = sqliteTable("doors", {
   uniqueIndex("doors_account_community_door").on(table.accountId, table.communityId, table.doorControlId),
 ]);
 
+export const gateDoorPreferences = sqliteTable("door_preferences", {
+  publicId: text("public_id").primaryKey(),
+  displayOrder: integer("display_order").notNull(),
+});
+
 export const gateAuditLogs = sqliteTable("audit_logs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   accountId: text("account_id"),
