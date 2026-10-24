@@ -191,9 +191,9 @@ export function DoorApp() {
             </section>
 
             <div><div className="mb-3 flex items-end justify-between px-1"><div><p className="text-[11px] font-bold uppercase tracking-[.16em] text-[#8791a3]">Doors</p><h2 className="mt-0.5 text-[26px] font-extrabold tracking-[-.04em]">门禁</h2></div><span className="pb-1 text-xs font-semibold text-[#8791a3]">{doors.length} 个</span></div>
-              {busy === "doors" && !doors.length ? <div className="grid h-48 place-items-center rounded-[26px] bg-white"><LoaderCircle className="animate-spin text-[#2563eb]" /></div> : <div className="grid grid-cols-2 gap-3">{doors.map((door, index) => (
+              {busy === "doors" && !doors.length ? <div className="grid h-48 place-items-center rounded-[26px] bg-white"><LoaderCircle className="animate-spin text-[#2563eb]" /></div> : <div className="grid grid-cols-2 gap-3">{doors.map((door) => (
                 <article key={door.id} className="min-w-0 rounded-[24px] bg-white p-2 shadow-[0_10px_30px_rgba(30,48,39,.07)]">
-                  <button onClick={() => openDoor(door)} disabled={busy !== null} className={`flex aspect-square w-full flex-col items-start justify-between rounded-[19px] p-4 text-left text-white transition active:scale-[.97] disabled:opacity-55 ${index % 3 === 1 ? "bg-[#334155]" : index % 3 === 2 ? "bg-[#3b82f6]" : "bg-[#1d4ed8]"}`}>
+                  <button onClick={() => openDoor(door)} disabled={busy !== null} className="flex aspect-square w-full flex-col items-start justify-between rounded-[19px] bg-[#2563eb] p-4 text-left text-white transition active:scale-[.97] disabled:opacity-55">
                     <span className="grid h-16 w-16 place-items-center rounded-[20px] bg-white/12">{busy === door.id ? <LoaderCircle className="animate-spin" size={36} /> : <LockKeyholeOpen size={36} strokeWidth={2.3} />}</span>
                     <span className="min-w-0 max-w-full"><strong className="block truncate text-[28px] font-black leading-[1.05] tracking-[-.04em]">{door.name}</strong>{door.communityName && <span className="mt-2 block truncate text-[15px] font-semibold text-white/65">{door.communityName}</span>}</span>
                   </button>
