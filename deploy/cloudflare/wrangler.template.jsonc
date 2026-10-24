@@ -4,8 +4,9 @@
   "compatibility_date": "2026-05-15",
   "compatibility_flags": ["nodejs_compat"],
   "no_bundle": true,
+  __ROUTES__
   "rules": [{ "type": "ESModule", "globs": ["**/*.js", "**/*.mjs"] }],
-  "vars": { "OPENGATE_API_ENABLED": "0" },
+  "vars": { "OPENGATE_API_ENABLED": "__API_ENABLED__" },
   "assets": { "directory": "dist/client" },
   "d1_databases": [{
     "binding": "DB",

@@ -10,4 +10,4 @@ Build from `deploy/docker/Dockerfile`, mount `/app/web/data`, and pass configura
 
 ## Cloudflare Workers and D1
 
-The Cloudflare adapter is optional. Copy `deploy/cloudflare/wrangler.template.jsonc` to a private deployment configuration, replace placeholders, configure Worker secrets, apply the migrations, and deploy. No account ID, database UUID, custom domain, or secret belongs in this repository.
+The Cloudflare adapter is optional. Set `OPENGATE_CF_DATABASE_ID` and optionally `OPENGATE_CF_DATABASE_NAME`, `OPENGATE_CF_CUSTOM_DOMAIN`, and `OPENGATE_API_ENABLED=1` in the private deployment environment, configure Worker secrets, then run `npm run cf:deploy` from `web`. The generated `web/wrangler.production.jsonc` is ignored. No account ID, database UUID, custom domain, or secret belongs in this repository.
