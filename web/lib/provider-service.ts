@@ -1,5 +1,5 @@
 import { audit, getDoorByPublicId, loadCentralSession, persistCentralSession, saveCentralSession, saveDoors, updateDoorSelection, type CentralSession } from "./central";
-import { ALL_DOORS_PATH, HOME_DOORS_PATH, communityCodes, communityIds, dedupeDoors, deviceId, doorSortBody, doorSortMoveBody, encryptMobile, isSuccess, loginCredential, normalizeDoors, providerPost, upstreamMessage } from "./provider";
+import { ALL_DOORS_PATH, HOME_DOORS_PATH, communityCodes, communityIds, dedupeDoors, deviceId, doorSortBody, encryptMobile, isSuccess, loginCredential, normalizeDoors, providerPost, upstreamMessage } from "./provider";
 import { personalDisplayName } from "./account-name";
 
 export async function centralLogin(accountId: string, mobile: string, smsCode: string) {
@@ -13,7 +13,6 @@ export async function centralLogin(accountId: string, mobile: string, smsCode: s
   const resolvedAccountId = await saveCentralSession(accountId, mobile, personalDisplayName(personal.data), session);
   await audit(resolvedAccountId, "account.login", null, true, "中心会话已更新");
 }
-
 export async function centralDoors(accountId: string) {
   const session = await loadCentralSession(accountId);
   const options = { sessionId: session.sessionId, signingToken: session.signingToken, openId: session.openId, signing: "mobile-body" as const, context: session.context };
@@ -29,6 +28,7 @@ export async function centralDoors(accountId: string) {
     }
     const featured = home && isSuccess(home) ? normalizeDoors(home.data, communityId, codes.get(communityId)) : [];
     const featuredIds = new Set(featured.map((door) => `${door.communityId}:${door.doorControlId}`));
+    const featuredOrder = new Map(featured.map((door, index) => [`${door.communityId}:${door.doorControlId}`, index]));
     let all: Awaited<ReturnType<typeof providerPost>> | null = null;
     try {
       all = await providerPost("mobile", ALL_DOORS_PATH, { communityId }, { ...options, encoding: "multipart" });
@@ -39,6 +39,7 @@ export async function centralDoors(accountId: string) {
       doors.push(...normalizeDoors(all.data, communityId, codes.get(communityId)).map((door) => ({
         ...door,
         providerFeatured: featuredIds.has(`${door.communityId}:${door.doorControlId}`),
+        providerOrder: featuredOrder.get(`${door.communityId}:${door.doorControlId}`),
       })));
       continue;
     }
@@ -47,7 +48,7 @@ export async function centralDoors(accountId: string) {
     // Preserve the previously verified home-list behavior instead of erasing
     // the account's cached doors when that happens.
     if (!home || !isSuccess(home)) throw new Error(upstreamMessage(home || {}, "门禁查询失败"));
-    doors.push(...featured.map((door) => ({ ...door, providerFeatured: true })));
+    doors.push(...featured.map((door, index) => ({ ...door, providerFeatured: true, providerOrder: index })));
   }
   const result = dedupeDoors(doors); await persistCentralSession(accountId, session); await saveDoors(accountId, result); return result;
 }
@@ -65,18 +66,4 @@ export async function setProviderDoorSelected(publicId: string, selected: boolea
   await persistCentralSession(door.accountId, session);
   await updateDoorSelection(publicId, selected);
   await audit(door.accountId, "door.selection", publicId, true, selected ? "已加入官方常用门禁" : "已移出官方常用门禁");
-}
-
-export async function moveProviderDoor(publicId: string, direction: "up" | "down") {
-  const door = await getDoorByPublicId(publicId);
-  if (!door) throw new Error("门禁不存在，请先刷新门禁列表");
-  const session = await loadCentralSession(door.accountId);
-  const options = { sessionId: session.sessionId, signingToken: session.signingToken, openId: session.openId, signing: "mobile-body" as const, context: session.context };
-  const all = await providerPost("mobile", ALL_DOORS_PATH, { communityId: door.communityId }, { ...options, encoding: "multipart" });
-  if (!isSuccess(all)) throw new Error(upstreamMessage(all, "门禁查询失败"));
-  const body = doorSortMoveBody(all.data, door.communityId, door.doorControlId, direction);
-  const saved = await providerPost("mobile", "app/user/v1/doorSort", body, { ...options, encoding: "json", signingExclude: ["list"] });
-  if (!isSuccess(saved)) throw new Error(upstreamMessage(saved, "门禁顺序保存失败"));
-  await persistCentralSession(door.accountId, session);
-  await audit(door.accountId, "door.order", publicId, true, direction === "up" ? "已向前移动" : "已向后移动");
 }

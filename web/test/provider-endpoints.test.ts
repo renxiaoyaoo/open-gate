@@ -9,7 +9,7 @@ process.env.OPENGATE_PROVIDER_SIGNING_KEY = "test-signing-key";
 process.env.OPENGATE_PROVIDER_MOBILE_URL = "https://mobile.provider.example/api/";
 process.env.OPENGATE_PROVIDER_APP_URL = "https://app.provider.example/";
 process.env.OPENGATE_PROVIDER_GATEWAY_URL = "https://gateway.provider.example/";
-const { ALL_DOORS_PATH, HOME_DOORS_PATH, UpstreamError, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, doorSortMoveBody, encryptMobile, isAuthenticationExpired, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
+const { ALL_DOORS_PATH, HOME_DOORS_PATH, UpstreamError, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, encryptMobile, isAuthenticationExpired, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
 const { publicDoor } = await import("../lib/public-door.ts");
 const { personalDisplayName } = await import("../lib/account-name.ts");
 
@@ -215,20 +215,6 @@ test("rebuilds the provider doorSort groups when a common door is added or remov
   });
   assert.deepEqual(doorSortBody(payload, 8, 40, false), {
     list: [{ commondoorControlIds: [], gatedoorControlIds: [10, 40], buildingDoorList: [20], customDoorList: [30] }],
-    method: "doorSort", commId: 8, gateDoorColor: 1, buildingDoorColor: 2, customDoorColor: 3,
-  });
-});
-
-test("reorders official common doors without changing provider categories", () => {
-  const payload = {
-    gateDoorList: [{ doorControlId: 10 }],
-    buildingDoorList: [{ doorControlId: 20 }],
-    customDoorList: [{ doorControlId: 30 }],
-    commonlyUsedDoor: [{ doorControlId: 40, doorControlUsefor: "大门" }, { doorControlId: 50, doorControlUsefor: "单元门或楼栋门" }],
-    gateDoorColor: 1, buildingDoorColor: 2, customDoorColor: 3,
-  };
-  assert.deepEqual(doorSortMoveBody(payload, 8, 50, "up"), {
-    list: [{ commondoorControlIds: [50, 40], gatedoorControlIds: [10], buildingDoorList: [20], customDoorList: [30] }],
     method: "doorSort", commId: 8, gateDoorColor: 1, buildingDoorColor: 2, customDoorColor: 3,
   });
 });

@@ -197,7 +197,7 @@ export function communityIds(payload: unknown): number[] {
 }
 
 const PASSWORD_MODELS = new Set(["QLG2020-R8", "QL21D-26JT", "QLG19-C215", "QLL19-C32", "21D-AD", "QL23D-2623", "QL22D-A", "23D-2623A", "QLG2020-68A"]);
-export type Door = { doorControlId: number; communityId: number; name: string; communityName?: string; communityCode?: string; mac?: string; deviceModel?: string; passwordSupported?: boolean; providerFeatured?: boolean };
+export type Door = { doorControlId: number; communityId: number; name: string; communityName?: string; communityCode?: string; mac?: string; deviceModel?: string; passwordSupported?: boolean; providerFeatured?: boolean; providerOrder?: number };
 
 type DoorSortCategory = "gate" | "building" | "custom";
 type DoorSortState = {
@@ -273,24 +273,6 @@ export function doorSortBody(payload: unknown, communityId: number, doorControlI
   };
 }
 
-/** Reorder the provider's common-door list without changing its categories. */
-export function doorSortMoveBody(payload: unknown, communityId: number, doorControlId: number, direction: "up" | "down"): JsonMap {
-  if (!Number.isSafeInteger(communityId) || communityId <= 0 || !Number.isSafeInteger(doorControlId) || doorControlId <= 0) throw new UpstreamError("门禁参数无效");
-  const state = doorSortState(payload);
-  const index = state.common.indexOf(doorControlId);
-  const target = direction === "up" ? index - 1 : index + 1;
-  if (index < 0) throw new UpstreamError("该门禁不在官方常用门禁中");
-  const common = [...state.common];
-  if (target >= 0 && target < common.length) [common[index], common[target]] = [common[target], common[index]];
-  return {
-    list: [{ commondoorControlIds: common, gatedoorControlIds: state.gate, buildingDoorList: state.building, customDoorList: state.custom }],
-    method: "doorSort",
-    commId: communityId,
-    gateDoorColor: state.gateDoorColor,
-    buildingDoorColor: state.buildingDoorColor,
-    customDoorColor: state.customDoorColor,
-  };
-}
 export function communityCodes(payload: unknown): Map<number, string> {
   const found = new Map<number, string>();
   walk(payload, (item) => {

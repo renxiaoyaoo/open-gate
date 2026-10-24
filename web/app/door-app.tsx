@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Check, Copy, KeyRound, List, LoaderCircle, LockKeyholeOpen, LogOut, Plus, RefreshCw, Smartphone, X } from "lucide-react";
+import { Check, Copy, KeyRound, List, LoaderCircle, LockKeyholeOpen, LogOut, Plus, RefreshCw, Smartphone, X } from "lucide-react";
 
 type Door = { id: string; name: string; communityName?: string | null; passwordSupported?: boolean; providerFeatured: boolean; selected: boolean; refreshedAt: number };
 type Account = { id: string; username: string };
@@ -159,19 +159,6 @@ export function DoorApp() {
     finally { setBusy(null); }
   }
 
-  async function moveDoor(door: Door, direction: "up" | "down") {
-    const selected = doors.filter((item) => item.selected);
-    const index = selected.findIndex((item) => item.id === door.id);
-    const target = direction === "up" ? index - 1 : index + 1;
-    if (index < 0 || target < 0 || target >= selected.length) return;
-    const reordered = [...selected]; [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-    const selectedIds = new Set(reordered.map((item) => item.id));
-    const previous = doors;
-    setDoors([...reordered, ...doors.filter((item) => !selectedIds.has(item.id))]);
-    try { const result = await request<{ direction: "up" | "down"; doors: Door[] }>(`/api/v1/doors/${door.id}`, { method: "PATCH", body: JSON.stringify({ direction }) }); if (result.data?.doors) setDoors(result.data.doors); }
-    catch (error) { setDoors(previous); notify(error instanceof Error ? error.message : "排序保存失败", "error"); }
-  }
-
   async function showPassword(door: Door) {
     setBusy(`password:${door.id}`);
     try {
@@ -231,7 +218,6 @@ export function DoorApp() {
                     <span className={`grid h-16 w-16 place-items-center rounded-[16px] ${door.selected ? "bg-[#d97757] text-white" : "bg-[#fbfaf7] text-[#77736b]"}`}>{busy === door.id ? <LoaderCircle className="animate-spin" size={36} /> : manageDoors && door.selected ? <Check size={38} strokeWidth={2.3} /> : <LockKeyholeOpen size={36} strokeWidth={2.1} />}</span>
                     <span className="min-w-0 max-w-full"><strong className="block truncate text-[28px] font-semibold leading-[1.08] tracking-[-.03em]">{door.name}</strong>{door.communityName && <span className="mt-2 block truncate text-[15px] text-[#77736b]">{door.communityName}</span>}</span>
                   </button>
-                  {manageDoors && door.selected && <div className="mt-1.5 grid grid-cols-2 gap-1.5"><button aria-label={`${door.name}上移`} onClick={() => moveDoor(door, "up")} className="grid h-9 place-items-center rounded-[9px] text-[#77736b] disabled:opacity-25" disabled={busy !== null || visibleDoors.filter((item) => item.selected)[0]?.id === door.id}><ArrowUp size={17} /></button><button aria-label={`${door.name}下移`} onClick={() => moveDoor(door, "down")} className="grid h-9 place-items-center rounded-[9px] text-[#77736b] disabled:opacity-25" disabled={busy !== null || visibleDoors.filter((item) => item.selected).at(-1)?.id === door.id}><ArrowDown size={17} /></button></div>}
                   {!manageDoors && door.passwordSupported && <button onClick={() => showPassword(door)} disabled={busy !== null} className="mt-1.5 flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-medium tabular-nums text-[#9a5a45] disabled:opacity-40">{busy === `password:${door.id}` ? <LoaderCircle className="animate-spin" size={15} /> : passwords[door.id] ? <Copy size={14} /> : <KeyRound size={14} />}{passwordLabel(door.id)}</button>}
                 </article>
               ))}</div>}
