@@ -1,13 +1,15 @@
 import { audit, completedIdempotentOpen, getDoorByPublicId, listActiveAccountIds, listPublicDoors, loadCentralSession, persistCentralSession } from "./central";
 import { centralDoors } from "./provider-service";
-import { doorPassword, isSuccess, openDoorBody, providerPost, upstreamMessage } from "./provider";
+import { doorPassword, isAuthenticationExpired, isSuccess, openDoorBody, providerPost, upstreamMessage } from "./provider";
 
 /** Refresh every provider account while keeping account identity inside the service boundary. */
 export async function refreshPublicDoors() {
   const accountIds = await listActiveAccountIds();
   const results = await Promise.allSettled(accountIds.map((accountId) => centralDoors(accountId)));
-  const failed = results.filter((result) => result.status === "rejected").length;
-  return { doors: await listPublicDoors(), accountCount: accountIds.length, failedAccountCount: failed };
+  const rejected = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+  const expired = rejected.filter((result) => isAuthenticationExpired(result.reason));
+  if (accountIds.length > 0 && expired.length === accountIds.length) throw expired[0].reason;
+  return { doors: await listPublicDoors(), accountCount: accountIds.length, failedAccountCount: rejected.length, expiredAccountCount: expired.length };
 }
 
 export async function openPublicDoor(publicId: string, idempotencyKey: string) {

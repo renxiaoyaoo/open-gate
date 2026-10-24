@@ -7,7 +7,7 @@ type Door = { id: string; name: string; communityName?: string | null; passwordS
 type Account = { id: string; username: string };
 type DoorPassword = { value: string; validUntil: number };
 type Toast = { text: string; kind: "success" | "error" | "info" };
-type ApiResult<T = unknown> = { ok: boolean; message?: string; data?: T; meta?: { failedAccountCount?: number } };
+type ApiResult<T = unknown> = { ok: boolean; message?: string; data?: T; meta?: { failedAccountCount?: number; expiredAccountCount?: number } };
 
 async function request<T>(url: string, init?: RequestInit): Promise<ApiResult<T>> {
   const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...init?.headers } });
@@ -64,20 +64,25 @@ export function DoorApp() {
   }, [toast]);
 
   const notify = useCallback((text: string, kind: Toast["kind"] = "info") => { setToast({ text, kind }); }, []);
+  const requireLogin = useCallback((message = "登录已过期，请重新登录") => {
+    setLoggedIn(false); setShowLogin(true); setDoors([]); setPasswords({}); setManageDoors(false); setBusy(null); setCode(""); setCountdown(0);
+    notify(message, "error");
+  }, [notify]);
 
   const loadDoors = useCallback(async () => {
     setBusy("doors");
     try {
       const result = await request<Door[]>("/api/v1/doors");
       setDoors(result.data || []); setLoggedIn(true);
-      if (result.meta?.failedAccountCount) notify(`${result.meta.failedAccountCount} 个账号刷新失败`, "error");
+      if (result.meta?.expiredAccountCount) notify(`${result.meta.expiredAccountCount} 个账号登录已过期`, "error");
+      else if (result.meta?.failedAccountCount) notify(`${result.meta.failedAccountCount} 个账号刷新失败`, "error");
       else if (!result.data?.length) notify("没有可用门禁");
       else if (result.message) notify(result.message);
     } catch (error) {
-      if (error instanceof Error && "status" in error && error.status === 401) { setLoggedIn(false); setDoors([]); }
-      notify(error instanceof Error ? error.message : "门禁加载失败", "error");
+      if (error instanceof Error && "status" in error && error.status === 401) requireLogin(error.message);
+      else notify(error instanceof Error ? error.message : "门禁加载失败", "error");
     } finally { setBusy(null); }
-  }, [notify]);
+  }, [notify, requireLogin]);
 
   async function loadAccounts() {
     const result = await request<Account[]>("/api/v1/accounts");
@@ -137,8 +142,8 @@ export function DoorApp() {
       const result = await request(`/api/v1/doors/${door.id}/open`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() } });
       notify(result.message || `${door.name} 已开门`, "success");
     } catch (error) {
-      if (error instanceof Error && "status" in error && error.status === 401) { setLoggedIn(false); setDoors([]); }
-      notify(error instanceof Error ? error.message : "开门失败", "error");
+      if (error instanceof Error && "status" in error && error.status === 401) requireLogin(error.message);
+      else notify(error instanceof Error ? error.message : "开门失败", "error");
     } finally { openingRef.current = false; setBusy(null); }
   }
 
@@ -148,7 +153,10 @@ export function DoorApp() {
     try {
       await request(`/api/v1/doors/${door.id}`, { method: "PATCH", body: JSON.stringify({ selected }) });
       setDoors((items) => items.map((item) => item.id === door.id ? { ...item, selected } : item));
-    } catch (error) { notify(error instanceof Error ? error.message : "保存失败", "error"); }
+    } catch (error) {
+      if (error instanceof Error && "status" in error && error.status === 401) requireLogin(error.message);
+      else notify(error instanceof Error ? error.message : "保存失败", "error");
+    }
     finally { setBusy(null); }
   }
 

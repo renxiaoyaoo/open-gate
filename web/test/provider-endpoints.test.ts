@@ -9,7 +9,7 @@ process.env.OPENGATE_PROVIDER_SIGNING_KEY = "test-signing-key";
 process.env.OPENGATE_PROVIDER_MOBILE_URL = "https://mobile.provider.example/api/";
 process.env.OPENGATE_PROVIDER_APP_URL = "https://app.provider.example/";
 process.env.OPENGATE_PROVIDER_GATEWAY_URL = "https://gateway.provider.example/";
-const { ALL_DOORS_PATH, HOME_DOORS_PATH, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, encryptMobile, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
+const { ALL_DOORS_PATH, HOME_DOORS_PATH, UpstreamError, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, encryptMobile, isAuthenticationExpired, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
 const { publicDoor } = await import("../lib/public-door.ts");
 const { personalDisplayName } = await import("../lib/account-name.ts");
 
@@ -152,6 +152,12 @@ test("matches the provider app business-success rule exactly", () => {
   assert.equal(isSuccess({ code: "0" }), true);
   assert.equal(isSuccess({ code: 1 }), false);
   assert.equal(isSuccess({ code: 200 }), false);
+});
+
+test("recognizes provider session expiry without classifying ordinary failures as authentication", () => {
+  assert.equal(isAuthenticationExpired(new Error("您还没有登录，或者登录已超时，请重新登录！")), true);
+  assert.equal(isAuthenticationExpired(new UpstreamError("request failed", { code: 1, message: "登录失效" })), true);
+  assert.equal(isAuthenticationExpired(new Error("门禁查询失败")), false);
 });
 
 test("round-trips only safe upstream cookie-jar entries", () => {

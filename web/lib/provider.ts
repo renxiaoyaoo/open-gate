@@ -155,6 +155,14 @@ export function upstreamMessage(payload: JsonMap, fallback: string) {
   const message = payload.message ?? payload.msg;
   return typeof message === "string" && message.trim() ? message : fallback;
 }
+
+/** Recognize the provider's authenticated-session expiry responses. */
+export function isAuthenticationExpired(error: unknown) {
+  const message = error instanceof UpstreamError && error.payload && typeof error.payload === "object" && !Array.isArray(error.payload)
+    ? upstreamMessage(error.payload as JsonMap, error.message)
+    : error instanceof Error ? error.message : String(error ?? "");
+  return /还没有登录|登录已超时|重新登录|登录失效|session.*(?:失效|过期|invalid|expired)/i.test(message);
+}
 // The app's global response resolver and endpoint call sites compare code to 0.
 export function isSuccess(payload: JsonMap) { return Number(payload.code) === 0; }
 
