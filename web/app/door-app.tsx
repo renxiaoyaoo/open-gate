@@ -18,11 +18,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<ApiResult<T>
 
 function GateLogo() {
   return (
-    <span className="grid h-10 w-10 place-items-center rounded-[12px] bg-[#526277] text-white shadow-[0_8px_22px_rgba(82,98,119,.16)]">
+    <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-[#d97757] text-[#fffaf5]">
       <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none">
         <path d="M5 20V4.5h10V20M3.5 20.5h17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M9 7.1 18.5 5v15L9 17.5V7.1Z" fill="white" fillOpacity=".96" stroke="white" strokeWidth="1.4" strokeLinejoin="round" />
-        <circle cx="15.6" cy="12.8" r=".8" fill="#a45d55" />
+        <circle cx="15.6" cy="12.8" r=".8" fill="#5b3328" />
       </svg>
     </span>
   );
@@ -64,22 +64,20 @@ export function DoorApp() {
   }, [toast]);
 
   const notify = useCallback((text: string, kind: Toast["kind"] = "info") => { setToast({ text, kind }); }, []);
-  const requireLogin = useCallback((message = "登录已过期，请重新登录") => {
+  const requireLogin = useCallback(() => {
     setLoggedIn(false); setShowLogin(true); setDoors([]); setPasswords({}); setManageDoors(false); setBusy(null); setCode(""); setCountdown(0);
-    notify(message, "error");
-  }, [notify]);
+  }, []);
 
   const loadDoors = useCallback(async () => {
     setBusy("doors");
     try {
       const result = await request<Door[]>("/api/v1/doors");
       setDoors(result.data || []); setLoggedIn(true);
-      if (result.meta?.expiredAccountCount) notify(`${result.meta.expiredAccountCount} 个账号登录已过期`, "error");
-      else if (result.meta?.failedAccountCount) notify(`${result.meta.failedAccountCount} 个账号刷新失败`, "error");
+      if (result.meta?.failedAccountCount && !result.meta.expiredAccountCount) notify(`${result.meta.failedAccountCount} 个账号刷新失败`, "error");
       else if (!result.data?.length) notify("没有可用门禁");
       else if (result.message) notify(result.message);
     } catch (error) {
-      if (error instanceof Error && "status" in error && error.status === 401) requireLogin(error.message);
+      if (error instanceof Error && "status" in error && error.status === 401) requireLogin();
       else notify(error instanceof Error ? error.message : "门禁加载失败", "error");
     } finally { setBusy(null); }
   }, [notify, requireLogin]);
@@ -142,7 +140,7 @@ export function DoorApp() {
       const result = await request(`/api/v1/doors/${door.id}/open`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() } });
       notify(result.message || `${door.name} 已开门`, "success");
     } catch (error) {
-      if (error instanceof Error && "status" in error && error.status === 401) requireLogin(error.message);
+      if (error instanceof Error && "status" in error && error.status === 401) requireLogin();
       else notify(error instanceof Error ? error.message : "开门失败", "error");
     } finally { openingRef.current = false; setBusy(null); }
   }
@@ -154,7 +152,7 @@ export function DoorApp() {
       await request(`/api/v1/doors/${door.id}`, { method: "PATCH", body: JSON.stringify({ selected }) });
       setDoors((items) => items.map((item) => item.id === door.id ? { ...item, selected } : item));
     } catch (error) {
-      if (error instanceof Error && "status" in error && error.status === 401) requireLogin(error.message);
+      if (error instanceof Error && "status" in error && error.status === 401) requireLogin();
       else notify(error instanceof Error ? error.message : "保存失败", "error");
     }
     finally { setBusy(null); }
@@ -185,40 +183,40 @@ export function DoorApp() {
   const visibleDoors = manageDoors ? doors : doors.filter((door) => door.selected);
 
   return (
-    <main className="min-h-screen bg-[#f5f4f0] px-4 py-6 text-[#30343a] sm:py-10">
-      {toast && <div role="status" className={`fixed left-1/2 top-5 z-50 flex max-w-[calc(100%-32px)] -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(38,43,50,.16)] ${toast.kind === "error" ? "bg-[#a45d55]" : toast.kind === "success" ? "bg-[#526277]" : "bg-[#555d67]"}`}>{toast.text}</div>}
+    <main className="min-h-screen bg-[#f7f6f2] px-4 py-6 text-[#2d2d2a] sm:py-10">
+      {toast && <div role="status" className={`fixed left-1/2 top-5 z-50 flex max-w-[calc(100%-32px)] -translate-x-1/2 items-center gap-2 rounded-[12px] border px-4 py-2.5 text-sm font-medium shadow-[0_10px_30px_rgba(45,45,42,.08)] ${toast.kind === "error" ? "border-[#e7b8aa] bg-[#fff8f5] text-[#9b4d38]" : toast.kind === "success" ? "border-[#dfc5b9] bg-[#fffaf7] text-[#7d4938]" : "border-[#dedbd3] bg-white text-[#4f4e48]"}`}>{toast.text}</div>}
 
       <section className="mx-auto w-full max-w-[520px]">
-        <header className="mb-7 flex items-center justify-between px-1">
-          <div className="flex items-center gap-3"><GateLogo /><div><h1 className="text-[19px] font-bold leading-none tracking-[-.02em]">OpenGate</h1><span className="mt-1.5 block text-[9px] font-medium uppercase tracking-[.22em] text-[#73777d]">Access, simplified</span></div></div>
-          {loggedIn && !showLogin && <button onClick={loadDoors} disabled={busy !== null} aria-label="刷新门禁" className="grid h-10 w-10 place-items-center rounded-[12px] bg-white text-[#526277] shadow-[0_6px_20px_rgba(38,43,50,.07)] disabled:opacity-40"><RefreshCw size={17} className={busy === "doors" ? "animate-spin" : ""} /></button>}
+        <header className="mb-9 flex items-center justify-between px-1">
+          <div className="flex items-center gap-3"><GateLogo /><div><h1 className="text-[19px] font-semibold leading-none tracking-[-.02em]">OpenGate</h1><span className="mt-1.5 block text-[10px] tracking-[.08em] text-[#85827a]">简单开门</span></div></div>
+          {loggedIn && !showLogin && <button onClick={loadDoors} disabled={busy !== null} aria-label="刷新门禁" className="grid h-10 w-10 place-items-center rounded-[10px] border border-[#dedbd3] bg-[#fbfaf7] text-[#65625b] transition hover:bg-white disabled:opacity-40"><RefreshCw size={17} className={busy === "doors" ? "animate-spin" : ""} /></button>}
         </header>
 
         {!initialized ? <div className="grid h-64 place-items-center"><LoaderCircle className="animate-spin text-[#526277]" size={26} /></div> : !loggedIn || showLogin ? (
-          <form onSubmit={(event) => event.preventDefault()} className="overflow-hidden rounded-[30px] bg-white shadow-[0_24px_70px_rgba(25,48,37,.1)]">
-            <div className="bg-[#526277] px-6 pb-7 pt-8 text-white sm:px-8"><div className="mb-5 grid h-11 w-11 place-items-center rounded-xl bg-white/10"><Smartphone size={21} /></div><h2 className="text-[28px] font-bold tracking-[-.02em]">{loggedIn ? "添加账号" : "登录"}</h2><p className="mt-1.5 text-sm font-medium text-white/65">{loggedIn ? "连接另一个门禁账号" : "验证码登录，无需密码"}</p></div>
-            <div className="space-y-3 p-5 sm:p-7">
-              <input aria-label="手机号" autoComplete="tel" inputMode="numeric" maxLength={11} value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))} placeholder="手机号" className="h-14 w-full rounded-xl border border-[#d8d7d2] bg-[#fbfaf7] px-4 text-base outline-none transition focus:border-[#526277] focus:ring-4 focus:ring-[#526277]/10" />
-              <div className="flex gap-2.5"><input aria-label="验证码" autoComplete="one-time-code" inputMode="numeric" maxLength={6} value={code} onChange={(event) => { const next = event.target.value.replace(/\D/g, ""); setCode(next); if (next.length === 6) void login(next); }} placeholder="6位验证码" className="h-14 min-w-0 flex-1 rounded-xl border border-[#d8d7d2] bg-[#fbfaf7] px-4 text-base outline-none transition focus:border-[#526277] focus:ring-4 focus:ring-[#526277]/10" /><button type="button" disabled={busy !== null || countdown > 0} onClick={sendSms} className="min-w-[108px] rounded-xl bg-[#e9ecef] px-3 text-sm font-bold text-[#526277] transition active:scale-[.98] disabled:opacity-45">{busy === "sms" ? <LoaderCircle className="mx-auto animate-spin" size={18} /> : countdown > 0 ? `${countdown}s` : "获取验证码"}</button></div>
-              {busy === "login" && <div className="flex h-8 items-center justify-center"><LoaderCircle className="animate-spin text-[#526277]" size={20} /></div>}
-              {loggedIn && <button type="button" onClick={() => { setShowLogin(false); setPhone(""); setCode(""); setCountdown(0); }} className="h-11 w-full text-sm font-bold text-[#667085]">取消</button>}
+          <form onSubmit={(event) => event.preventDefault()} className="rounded-[18px] border border-[#dedbd3] bg-[#fbfaf7] p-6 sm:p-8">
+            <div className="mb-8"><div className="mb-5 grid h-10 w-10 place-items-center rounded-[10px] bg-[#f0ebe5] text-[#9a5a45]"><Smartphone size={19} /></div><h2 className="font-display text-[30px] font-medium tracking-[-.035em] text-[#2d2d2a]">{loggedIn ? "添加账号" : "登录"}</h2><p className="mt-2 text-sm text-[#77736b]">{loggedIn ? "连接另一个门禁账号" : "使用短信验证码登录"}</p></div>
+            <div className="space-y-3">
+              <input aria-label="手机号" autoComplete="tel" inputMode="numeric" maxLength={11} value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))} placeholder="手机号" className="h-14 w-full rounded-[10px] border border-[#d8d4cb] bg-white px-4 text-base outline-none transition placeholder:text-[#aaa69d] focus:border-[#b97860] focus:ring-2 focus:ring-[#d97757]/10" />
+              <div className="flex gap-2.5"><input aria-label="验证码" autoComplete="one-time-code" inputMode="numeric" maxLength={6} value={code} onChange={(event) => { const next = event.target.value.replace(/\D/g, ""); setCode(next); if (next.length === 6) void login(next); }} placeholder="6位验证码" className="h-14 min-w-0 flex-1 rounded-[10px] border border-[#d8d4cb] bg-white px-4 text-base outline-none transition placeholder:text-[#aaa69d] focus:border-[#b97860] focus:ring-2 focus:ring-[#d97757]/10" /><button type="button" disabled={busy !== null || countdown > 0} onClick={sendSms} className="min-w-[112px] rounded-[10px] bg-[#d97757] px-3 text-sm font-semibold text-white transition hover:bg-[#ca6c4d] active:scale-[.98] disabled:opacity-40">{busy === "sms" ? <LoaderCircle className="mx-auto animate-spin" size={18} /> : countdown > 0 ? `${countdown}s` : "获取验证码"}</button></div>
+              {busy === "login" && <div className="flex h-8 items-center justify-center"><LoaderCircle className="animate-spin text-[#d97757]" size={20} /></div>}
+              {loggedIn && <button type="button" onClick={() => { setShowLogin(false); setPhone(""); setCode(""); setCountdown(0); }} className="h-11 w-full text-sm font-medium text-[#77736b]">取消</button>}
             </div>
           </form>
         ) : (
           <div className="space-y-6">
-            <section className="flex items-center gap-2 overflow-x-auto rounded-[20px] bg-white p-2.5 shadow-[0_8px_28px_rgba(30,48,39,.07)]">
-              {accounts.map((account) => <div key={account.id} className="flex shrink-0 items-center gap-2 rounded-[14px] bg-[#f1f5f9] py-2 pl-3 pr-1.5"><span className="max-w-36 truncate text-sm font-bold">{account.username}</span><button onClick={() => setLogoutTarget(account)} disabled={busy !== null} aria-label={`退出 ${account.username}`} className="grid h-7 w-7 place-items-center rounded-[10px] text-[#b5473d] disabled:opacity-40"><LogOut size={14} /></button></div>)}
-              <button onClick={() => setShowLogin(true)} aria-label="添加账号" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#526277] text-white"><Plus size={19} /></button>
+            <section className="flex items-center gap-2 overflow-x-auto rounded-[14px] border border-[#dedbd3] bg-[#fbfaf7] p-2.5">
+              {accounts.map((account) => <div key={account.id} className="flex shrink-0 items-center gap-2 rounded-[10px] bg-[#eeeae3] py-2 pl-3 pr-1.5"><span className="max-w-36 truncate text-sm font-medium">{account.username}</span><button onClick={() => setLogoutTarget(account)} disabled={busy !== null} aria-label={`退出 ${account.username}`} className="grid h-7 w-7 place-items-center rounded-[8px] text-[#a65d48] disabled:opacity-40"><LogOut size={14} /></button></div>)}
+              <button onClick={() => setShowLogin(true)} aria-label="添加账号" className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-[#d97757] text-white"><Plus size={18} /></button>
             </section>
 
-            <div><div className="mb-3 flex items-end justify-between px-1"><div><p className="text-[11px] font-bold uppercase tracking-[.16em] text-[#8791a3]">Doors</p><h2 className="mt-0.5 text-[26px] font-extrabold tracking-[-.04em]">{manageDoors ? "全部门禁" : "门禁"}</h2></div><button onClick={() => setManageDoors((value) => !value)} className="mb-0.5 h-9 rounded-xl bg-white px-3.5 text-sm font-bold text-[#526277] shadow-[0_5px_18px_rgba(38,43,50,.06)]">{manageDoors ? "完成" : `全部 ${doors.length}`}</button></div>
-              {busy === "doors" && !doors.length ? <div className="grid h-48 place-items-center rounded-[26px] bg-white"><LoaderCircle className="animate-spin text-[#526277]" /></div> : !visibleDoors.length && !manageDoors ? <button onClick={() => setManageDoors(true)} className="h-32 w-full rounded-[24px] bg-white text-sm font-bold text-[#526277] shadow-[0_10px_30px_rgba(30,48,39,.07)]">选择首页门禁</button> : <div className="grid grid-cols-2 gap-3">{visibleDoors.map((door) => (
-                <article key={door.id} className="min-w-0 rounded-[24px] bg-white p-2 shadow-[0_10px_30px_rgba(30,48,39,.07)]">
-                  <button onClick={() => manageDoors ? toggleDoor(door) : openDoor(door)} disabled={busy !== null} className={`flex aspect-square w-full flex-col items-start justify-between rounded-[19px] p-4 text-left transition active:scale-[.97] disabled:opacity-55 ${door.selected ? "bg-[#526277] text-white" : "bg-[#e9ecef] text-[#626a75]"}`}>
-                    <span className={`grid h-16 w-16 place-items-center rounded-[20px] ${door.selected ? "bg-white/12" : "bg-white/70"}`}>{busy === door.id || busy === `select:${door.id}` ? <LoaderCircle className="animate-spin" size={36} /> : manageDoors && door.selected ? <Check size={38} strokeWidth={2.5} /> : <LockKeyholeOpen size={36} strokeWidth={2.3} />}</span>
-                    <span className="min-w-0 max-w-full"><strong className="block truncate text-[28px] font-bold leading-[1.08] tracking-[-.025em]">{door.name}</strong>{door.communityName && <span className={`mt-2 block truncate text-[15px] font-medium ${door.selected ? "text-white/65" : "text-[#78818d]"}`}>{door.communityName}</span>}</span>
+            <div><div className="mb-3 flex items-end justify-between px-1"><h2 className="font-display text-[28px] font-medium tracking-[-.04em]">{manageDoors ? "全部门禁" : "门禁"}</h2><button onClick={() => setManageDoors((value) => !value)} className="mb-0.5 h-9 rounded-[9px] border border-[#dedbd3] bg-[#fbfaf7] px-3.5 text-sm font-medium text-[#65625b]">{manageDoors ? "完成" : `全部 ${doors.length}`}</button></div>
+              {busy === "doors" && !doors.length ? <div className="grid h-48 place-items-center rounded-[18px] border border-[#dedbd3] bg-[#fbfaf7]"><LoaderCircle className="animate-spin text-[#d97757]" /></div> : !visibleDoors.length && !manageDoors ? <button onClick={() => setManageDoors(true)} className="h-32 w-full rounded-[16px] border border-[#dedbd3] bg-[#fbfaf7] text-sm font-medium text-[#65625b]">选择首页门禁</button> : <div className="grid grid-cols-2 gap-3">{visibleDoors.map((door) => (
+                <article key={door.id} className="min-w-0 rounded-[18px] border border-[#dedbd3] bg-[#fbfaf7] p-2">
+                  <button onClick={() => manageDoors ? toggleDoor(door) : openDoor(door)} disabled={busy !== null} className={`flex aspect-square w-full flex-col items-start justify-between rounded-[13px] p-4 text-left transition active:scale-[.98] disabled:opacity-55 ${door.selected ? "bg-[#f0e6df] text-[#342d29]" : "bg-[#efede8] text-[#67635d]"}`}>
+                    <span className={`grid h-16 w-16 place-items-center rounded-[16px] ${door.selected ? "bg-[#d97757] text-white" : "bg-[#fbfaf7] text-[#77736b]"}`}>{busy === door.id || busy === `select:${door.id}` ? <LoaderCircle className="animate-spin" size={36} /> : manageDoors && door.selected ? <Check size={38} strokeWidth={2.3} /> : <LockKeyholeOpen size={36} strokeWidth={2.1} />}</span>
+                    <span className="min-w-0 max-w-full"><strong className="block truncate text-[28px] font-semibold leading-[1.08] tracking-[-.03em]">{door.name}</strong>{door.communityName && <span className="mt-2 block truncate text-[15px] text-[#77736b]">{door.communityName}</span>}</span>
                   </button>
-                  {!manageDoors && door.passwordSupported && <button onClick={() => showPassword(door)} disabled={busy !== null} className="mt-1.5 flex h-10 w-full items-center justify-center gap-1.5 rounded-[14px] text-[13px] font-bold tabular-nums text-[#526277] disabled:opacity-40">{busy === `password:${door.id}` ? <LoaderCircle className="animate-spin" size={15} /> : passwords[door.id] ? <Copy size={14} /> : <KeyRound size={14} />}{passwordLabel(door.id)}</button>}
+                  {!manageDoors && door.passwordSupported && <button onClick={() => showPassword(door)} disabled={busy !== null} className="mt-1.5 flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-medium tabular-nums text-[#9a5a45] disabled:opacity-40">{busy === `password:${door.id}` ? <LoaderCircle className="animate-spin" size={15} /> : passwords[door.id] ? <Copy size={14} /> : <KeyRound size={14} />}{passwordLabel(door.id)}</button>}
                 </article>
               ))}</div>}
             </div>
@@ -226,7 +224,7 @@ export function DoorApp() {
         )}
       </section>
 
-      {logoutTarget && <div className="fixed inset-0 z-40 grid place-items-center bg-[#0f172a]/45 p-5 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) setLogoutTarget(null); }}><section role="dialog" aria-modal="true" aria-labelledby="logout-title" className="w-full max-w-[340px] rounded-[26px] bg-white p-5 shadow-[0_30px_90px_rgba(15,23,42,.3)]"><div className="flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#a55b55]">Account</p><h2 id="logout-title" className="mt-1 text-xl font-extrabold tracking-[-.03em]">退出账号？</h2></div><button onClick={() => setLogoutTarget(null)} aria-label="取消退出" className="grid h-9 w-9 place-items-center rounded-xl bg-[#f1f5f9] text-[#667085]"><X size={18} /></button></div><p className="mt-3 truncate text-sm text-[#667085]">{logoutTarget.username}</p><div className="mt-6 grid grid-cols-2 gap-2.5"><button onClick={() => setLogoutTarget(null)} className="h-12 rounded-2xl bg-[#f1f5f9] text-sm font-bold text-[#475467]">取消</button><button onClick={() => logoutAccount(logoutTarget)} disabled={busy !== null} className="h-12 rounded-2xl bg-[#b42318] text-sm font-bold text-white disabled:opacity-50">{busy === `logout:${logoutTarget.id}` ? <LoaderCircle className="mx-auto animate-spin" size={18} /> : "确认退出"}</button></div></section></div>}
+      {logoutTarget && <div className="fixed inset-0 z-40 grid place-items-center bg-[#2d2d2a]/35 p-5 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) setLogoutTarget(null); }}><section role="dialog" aria-modal="true" aria-labelledby="logout-title" className="w-full max-w-[340px] rounded-[18px] border border-[#dedbd3] bg-[#fbfaf7] p-5 shadow-[0_24px_70px_rgba(45,45,42,.16)]"><div className="flex items-start justify-between"><h2 id="logout-title" className="font-display mt-1 text-[22px] font-medium tracking-[-.03em]">退出账号？</h2><button onClick={() => setLogoutTarget(null)} aria-label="取消退出" className="grid h-9 w-9 place-items-center rounded-[9px] bg-[#eeeae3] text-[#77736b]"><X size={18} /></button></div><p className="mt-3 truncate text-sm text-[#77736b]">{logoutTarget.username}</p><div className="mt-6 grid grid-cols-2 gap-2.5"><button onClick={() => setLogoutTarget(null)} className="h-12 rounded-[10px] bg-[#eeeae3] text-sm font-medium text-[#56534d]">取消</button><button onClick={() => logoutAccount(logoutTarget)} disabled={busy !== null} className="h-12 rounded-[10px] bg-[#d97757] text-sm font-semibold text-white disabled:opacity-50">{busy === `logout:${logoutTarget.id}` ? <LoaderCircle className="mx-auto animate-spin" size={18} /> : "确认退出"}</button></div></section></div>}
     </main>
   );
 }

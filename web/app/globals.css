@@ -3,5 +3,6 @@
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; font-family: "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", system-ui, sans-serif; }
+.font-display { font-family: "Songti SC", "Source Han Serif SC", "Noto Serif CJK SC", "STSong", serif; }
 button, input { font: inherit; }
 button { cursor: pointer; }
