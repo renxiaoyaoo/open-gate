@@ -168,7 +168,7 @@ export function DoorApp() {
     const selectedIds = new Set(reordered.map((item) => item.id));
     const previous = doors;
     setDoors([...reordered, ...doors.filter((item) => !selectedIds.has(item.id))]);
-    try { await request(`/api/v1/doors/${door.id}`, { method: "PATCH", body: JSON.stringify({ direction }) }); }
+    try { const result = await request<{ direction: "up" | "down"; doors: Door[] }>(`/api/v1/doors/${door.id}`, { method: "PATCH", body: JSON.stringify({ direction }) }); if (result.data?.doors) setDoors(result.data.doors); }
     catch (error) { setDoors(previous); notify(error instanceof Error ? error.message : "排序保存失败", "error"); }
   }
 

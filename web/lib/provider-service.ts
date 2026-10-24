@@ -1,5 +1,5 @@
 import { audit, getDoorByPublicId, loadCentralSession, persistCentralSession, saveCentralSession, saveDoors, updateDoorSelection, type CentralSession } from "./central";
-import { ALL_DOORS_PATH, HOME_DOORS_PATH, communityCodes, communityIds, dedupeDoors, deviceId, doorSortBody, encryptMobile, isSuccess, loginCredential, normalizeDoors, providerPost, upstreamMessage } from "./provider";
+import { ALL_DOORS_PATH, HOME_DOORS_PATH, communityCodes, communityIds, dedupeDoors, deviceId, doorSortBody, doorSortMoveBody, encryptMobile, isSuccess, loginCredential, normalizeDoors, providerPost, upstreamMessage } from "./provider";
 import { personalDisplayName } from "./account-name";
 
 export async function centralLogin(accountId: string, mobile: string, smsCode: string) {
@@ -65,4 +65,18 @@ export async function setProviderDoorSelected(publicId: string, selected: boolea
   await persistCentralSession(door.accountId, session);
   await updateDoorSelection(publicId, selected);
   await audit(door.accountId, "door.selection", publicId, true, selected ? "已加入官方常用门禁" : "已移出官方常用门禁");
+}
+
+export async function moveProviderDoor(publicId: string, direction: "up" | "down") {
+  const door = await getDoorByPublicId(publicId);
+  if (!door) throw new Error("门禁不存在，请先刷新门禁列表");
+  const session = await loadCentralSession(door.accountId);
+  const options = { sessionId: session.sessionId, signingToken: session.signingToken, openId: session.openId, signing: "mobile-body" as const, context: session.context };
+  const all = await providerPost("mobile", ALL_DOORS_PATH, { communityId: door.communityId }, { ...options, encoding: "multipart" });
+  if (!isSuccess(all)) throw new Error(upstreamMessage(all, "门禁查询失败"));
+  const body = doorSortMoveBody(all.data, door.communityId, door.doorControlId, direction);
+  const saved = await providerPost("mobile", "app/user/v1/doorSort", body, { ...options, encoding: "json", signingExclude: ["list"] });
+  if (!isSuccess(saved)) throw new Error(upstreamMessage(saved, "门禁顺序保存失败"));
+  await persistCentralSession(door.accountId, session);
+  await audit(door.accountId, "door.order", publicId, true, direction === "up" ? "已向前移动" : "已向后移动");
 }
