@@ -1,5 +1,5 @@
 import { audit, loadCentralSession, persistCentralSession, saveCentralSession, saveDoors, type CentralSession } from "./central";
-import { communityCodes, communityIds, dedupeDoors, deviceId, encryptMobile, isSuccess, loginCredential, normalizeDoors, providerPost, upstreamMessage } from "./provider";
+import { ALL_DOORS_PATH, HOME_DOORS_PATH, communityCodes, communityIds, dedupeDoors, deviceId, encryptMobile, isSuccess, loginCredential, normalizeDoors, providerPost, upstreamMessage } from "./provider";
 import { personalDisplayName } from "./account-name";
 
 export async function centralLogin(accountId: string, mobile: string, smsCode: string) {
@@ -21,8 +21,23 @@ export async function centralDoors(accountId: string) {
   if (!isSuccess(communities)) throw new Error(upstreamMessage(communities, "小区查询失败"));
   const codes = communityCodes(communities.data); const doors = [];
   for (const communityId of communityIds(communities.data).slice(0, 20)) {
-    const payload = await providerPost("mobile", "app/user/v2/queryUserDoorByCacheNew", { communityId }, { ...options, encoding: "multipart" });
-    if (isSuccess(payload)) doors.push(...normalizeDoors(payload.data, communityId, codes.get(communityId)));
+    let all: Awaited<ReturnType<typeof providerPost>> | null = null;
+    try {
+      all = await providerPost("mobile", ALL_DOORS_PATH, { communityId }, { ...options, encoding: "multipart" });
+    } catch {
+      // Fall through to the already verified home-list endpoint below.
+    }
+    if (all && isSuccess(all)) {
+      doors.push(...normalizeDoors(all.data, communityId, codes.get(communityId)));
+      continue;
+    }
+
+    // Older provider deployments may not expose the complete-list endpoint.
+    // Preserve the previously verified home-list behavior instead of erasing
+    // the account's cached doors when that happens.
+    const home = await providerPost("mobile", HOME_DOORS_PATH, { communityId }, { ...options, encoding: "multipart" });
+    if (!isSuccess(home)) throw new Error(upstreamMessage(home, "门禁查询失败"));
+    doors.push(...normalizeDoors(home.data, communityId, codes.get(communityId)));
   }
   const result = dedupeDoors(doors); await persistCentralSession(accountId, session); await saveDoors(accountId, result); return result;
 }

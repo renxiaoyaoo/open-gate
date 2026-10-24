@@ -9,7 +9,7 @@ process.env.OPENGATE_PROVIDER_SIGNING_KEY = "test-signing-key";
 process.env.OPENGATE_PROVIDER_MOBILE_URL = "https://mobile.provider.example/api/";
 process.env.OPENGATE_PROVIDER_APP_URL = "https://app.provider.example/";
 process.env.OPENGATE_PROVIDER_GATEWAY_URL = "https://gateway.provider.example/";
-const { absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, encryptMobile, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
+const { ALL_DOORS_PATH, HOME_DOORS_PATH, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, encryptMobile, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
 const { publicDoor } = await import("../lib/public-door.ts");
 const { personalDisplayName } = await import("../lib/account-name.ts");
 
@@ -27,6 +27,12 @@ test("matches the provider app's literal sessionId URL concatenation", () => {
 test("uses the provider app personal-info initialization endpoint before community loading", () => {
   assert.equal(providerUrl("mobile", "app/v1/personal/info").toString(), "https://mobile.provider.example/api/app/v1/personal/info");
   assert.equal(providerUrl("mobile", "app/user/v2/communityInfo").toString(), "https://mobile.provider.example/api/app/user/v2/communityInfo");
+});
+
+test("keeps complete and home door-list endpoints distinct", () => {
+  assert.equal(ALL_DOORS_PATH, "app/user/v2/queryAllUserDoorByCache");
+  assert.equal(HOME_DOORS_PATH, "app/user/v2/queryUserDoorByCacheNew");
+  assert.notEqual(ALL_DOORS_PATH, HOME_DOORS_PATH);
 });
 
 test("emits the provider app JSON wire contract for authenticated body requests", async () => {

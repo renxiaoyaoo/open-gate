@@ -12,6 +12,8 @@ const MOBILE_SIGNING_KEY = process.env.OPENGATE_PROVIDER_SIGNING_KEY || "";
 const APP_VERSION = process.env.OPENGATE_PROVIDER_APP_VERSION || "5.3.0";
 const APP_CHANNEL = process.env.OPENGATE_PROVIDER_APP_CHANNEL || "honor";
 const APP_VENDOR = process.env.OPENGATE_PROVIDER_APP_VENDOR || "Google";
+export const ALL_DOORS_PATH = "app/user/v2/queryAllUserDoorByCache";
+export const HOME_DOORS_PATH = "app/user/v2/queryUserDoorByCacheNew";
 type JsonMap = Record<string, unknown>;
 export type ProviderRequestContext = { cookies: Record<string, string> };
 
