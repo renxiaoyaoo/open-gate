@@ -15,4 +15,4 @@ npm run build:node
 npm run start:node
 ```
 
-For Cloudflare, use `npm run build` and the template under `../deploy/cloudflare`. Both runtimes expose the same `/api/v1` contract.
+For Cloudflare, use `npm run build` and the template under `../deploy/cloudflare`. Both runtimes expose the same `/api/v1` contract. The scripts call Next.js and Vinext directly; no machine-specific bootstrap or hosted-preview wrapper is required.

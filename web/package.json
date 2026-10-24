@@ -6,14 +6,13 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "install:ci": "node scripts/install-ci.mjs",
-    "dev": "node scripts/run-framework.mjs dev",
-    "build": "node scripts/run-framework.mjs build",
-    "build:node": "next build --webpack",
+    "dev": "vinext dev --port 5173",
+    "build": "vinext build",
+    "build:node": "next build --webpack && node scripts/prepare-node-standalone.mjs",
     "cf:prepare": "node ../deploy/cloudflare/prepare-config.mjs",
     "cf:deploy": "sh ../deploy/cloudflare/deploy.sh",
-    "start": "next start",
-    "start:node": "next start",
+    "start": "node .next/standalone/server.js",
+    "start:node": "node .next/standalone/server.js",
     "test": "node --test --experimental-strip-types test/*.test.ts",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"

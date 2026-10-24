@@ -1,18 +1,13 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
-import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 
-const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
+const LOCAL_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
-
-// macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
-const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
-const managedLinux = readExecutionProfile() === "managed-linux";
 
 const localBindingConfig = {
   main: "./worker.ts",
   compatibility_flags: ["nodejs_compat"],
-  d1_databases: [{ binding: "DB", database_name: "open-gate-local", database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID }],
+  d1_databases: [{ binding: "DB", database_name: "open-gate-local", database_id: LOCAL_DATABASE_ID }],
 };
 
 export default defineConfig(async () => {
@@ -31,14 +26,6 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
-    server: {
-      ...(managedLinux
-        ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] }
-        : {}),
-      ...(isCodexSeatbeltSandbox
-        ? { watch: { useFsEvents: false, usePolling: true } }
-        : {}),
-    },
     plugins: [
       vinext(),
       cloudflare({
