@@ -1,11 +1,18 @@
-# OpenGate Web / OpenAPI
+# OpenHome Web
+
+OpenHome is a small home-control hub. It currently brings together two independent features:
+
+- **OpenGate** for access control
+- **Dryer** for live status, program selection, operation, and appointments
+
+The feature switcher is part of the product shell; OpenGate remains a distinct module rather than the name of the whole site.
 
 The application can run in two modes:
 
 - Node.js 22.13+ with the built-in SQLite driver and `OPENGATE_DATABASE_PATH`
 - Cloudflare Workers with a D1 binding named `DB`
 
-All provider-specific values are runtime configuration. Copy `.env.example`, supply a private provider adapter configuration, and never commit real endpoints or signing material.
+All provider-specific values are runtime configuration. Copy `.env.example`, supply the private access-control and dryer adapter configuration, and never commit real endpoints, credentials, sessions, or signing material.
 
 ```sh
 npm ci

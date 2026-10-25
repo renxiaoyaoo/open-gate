@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OpenGate",
-  description: "A provider-neutral access hub for every device",
+  title: "OpenHome",
+  description: "聚合门禁与家电控制的设备控制台",
   icons: { icon: "/favicon.svg" },
 };
 

@@ -1,5 +1,6 @@
-import { DoorApp } from "./door-app";
+import { AppShell } from "./app-shell";
 
-export default function Home() {
-  return <DoorApp />;
+export default async function Home({ searchParams }: { searchParams: Promise<{ feature?: string }> }) {
+  const { feature } = await searchParams;
+  return <AppShell feature={feature === "dryer" ? "dryer" : "gate"} />;
 }
