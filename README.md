@@ -29,7 +29,7 @@ npm run build:node
 npm run start:node
 ```
 
-Node.js 22.13 or newer is required. Local state is stored in `web/data/open-gate.sqlite` by default.
+Node.js 22.13 or newer is required. Local state is stored in `web/data/open-home.sqlite` by default.
 
 ## Cloudflare
 

@@ -1,5 +1,5 @@
 {
-  "name": "open-gate",
+  "name": "open-home",
   "main": "dist/server/index.js",
   "compatibility_date": "2026-05-15",
   "compatibility_flags": ["nodejs_compat"],

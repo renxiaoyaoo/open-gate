@@ -9,7 +9,7 @@ The feature switcher is part of the product shell; OpenGate remains a distinct m
 
 The application can run in two modes:
 
-- Node.js 22.13+ with the built-in SQLite driver and `OPENGATE_DATABASE_PATH`
+- Node.js 22.13+ with the built-in SQLite driver and `OPENHOME_DATABASE_PATH`
 - Cloudflare Workers with a D1 binding named `DB`
 
 All provider-specific values are runtime configuration. Copy `.env.example`, supply the private OpenGate and OpenDevice provider configuration, and never commit real endpoints, credentials, sessions, or signing material.

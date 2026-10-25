@@ -17,7 +17,7 @@ export async function getDb(): Promise<Database> { const bound = runtimeDatabase
 
 async function createNodeDatabase(): Promise<Database> {
   const [{ DatabaseSync }, { mkdir }, { dirname, resolve }] = await Promise.all([import("node:sqlite"), import("node:fs/promises"), import("node:path")]);
-  const filename = resolve(process.env.OPENGATE_DATABASE_PATH || "./data/open-gate.sqlite");
+  const filename = resolve(process.env.OPENHOME_DATABASE_PATH || "./data/open-home.sqlite");
   await mkdir(dirname(filename), { recursive: true });
   const sqlite = new DatabaseSync(filename);
   sqlite.exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;"); sqlite.exec(SCHEMA);

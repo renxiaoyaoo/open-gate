@@ -1,13 +1,13 @@
 services:
-  open-gate:
+  open-home:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
     env_file: ../../web/.env.local
     volumes:
-      - open-gate-data:/app/web/data
+      - open-home-data:/app/web/data
     ports:
       - "3000:3000"
 
 volumes:
-  open-gate-data:
+  open-home-data:

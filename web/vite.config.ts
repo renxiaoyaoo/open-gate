@@ -7,7 +7,7 @@ const LOCAL_DATABASE_ID =
 const localBindingConfig = {
   main: "./worker.ts",
   compatibility_flags: ["nodejs_compat"],
-  d1_databases: [{ binding: "DB", database_name: "open-gate-local", database_id: LOCAL_DATABASE_ID }],
+  d1_databases: [{ binding: "DB", database_name: "open-home-local", database_id: LOCAL_DATABASE_ID }],
 };
 
 export default defineConfig(async () => {

@@ -5,7 +5,7 @@ target=${1:?"Usage: sync-via-ssh.sh <ssh-target> <remote-repo-root> [private-env
 remote_root=${2:?"Usage: sync-via-ssh.sh <ssh-target> <remote-repo-root> [private-env-file]"}
 script_root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
 env_file=${3:-"$script_root/.env.deploy.local"}
-remote_file="/tmp/open-gate-secrets-$$.env"
+remote_file="/tmp/open-home-secrets-$$.env"
 
 test -f "$env_file"
 scp "$env_file" "$target:$remote_file"
