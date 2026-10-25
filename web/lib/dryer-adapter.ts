@@ -1,45 +1,23 @@
-const OPERATIONS = {
-  sms: { method: "POST", path: "api/login/sms/request" },
-  login: { method: "POST", path: "api/login/sms/verify" },
-  homes: { method: "GET", path: "api/homes" },
-  devices: { method: "GET", path: "api/devices" },
-  status: { method: "GET", path: "api/dryer/status" },
-  program: { method: "POST", path: "api/dryer/program" },
-  power: { method: "POST", path: "api/dryer/power" },
-  action: { method: "POST", path: "api/dryer/action" },
-} as const;
+import { OpenDeviceProvider, type OpenDeviceSession } from "./opendevice-provider.ts";
+import { openSession, sealSession } from "./session-crypto.ts";
 
+const COOKIE = "openhome_opendevice";
+const OPERATIONS = { sms: "POST", login: "POST", homes: "GET", devices: "GET", status: "GET", program: "POST", power: "POST", action: "POST" } as const;
 export type DryerOperation = keyof typeof OPERATIONS;
-
-export function dryerOperation(value: string) {
-  if (!(value in OPERATIONS)) throw new Error("不支持的干衣机操作");
-  return OPERATIONS[value as DryerOperation];
-}
-
-export function dryerAdapterUrl(operation: DryerOperation, search = "") {
-  const configured = process.env.MIDEA_DRYER_ADAPTER_URL?.trim();
-  if (!configured) throw new Error("尚未配置干衣机适配器");
-  const base = new URL(configured.endsWith("/") ? configured : `${configured}/`);
-  if (!/^https?:$/.test(base.protocol)) throw new Error("干衣机适配器地址无效");
-  const url = new URL(OPERATIONS[operation].path, base);
-  url.search = search;
-  return url;
-}
+export function dryerOperation(value: string) { if (!(value in OPERATIONS)) throw new Error("不支持的干衣机操作"); return { method: OPERATIONS[value as DryerOperation] }; }
+function cookie(request: Request) { return request.headers.get("cookie")?.split(/;\s*/).find((part) => part.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1); }
+function provider(request: Request) { const value = cookie(request); if (!value) throw new Error("请先连接 OpenDevice"); return new OpenDeviceProvider(openSession<OpenDeviceSession>(decodeURIComponent(value))); }
+async function json(request: Request) { return await request.json().catch(() => ({})) as Record<string, unknown>; }
+function id(value: unknown, label: string) { const text = String(value || ""); if (!/^[A-Za-z0-9_-]{1,128}$/.test(text)) throw new Error(`${label}无效`); return text; }
 
 export async function callDryerAdapter(operation: DryerOperation, request: Request) {
-  const spec = OPERATIONS[operation];
-  if (request.method !== spec.method) return new Response(JSON.stringify({ ok: false, message: "请求方法不支持" }), { status: 405, headers: { "content-type": "application/json" } });
-  const sourceUrl = new URL(request.url);
-  const headers: Record<string, string> = { accept: "application/json" };
-  const cookie = request.headers.get("cookie");
-  if (cookie) headers.cookie = cookie;
-  const body = spec.method === "POST" ? await request.text() : undefined;
-  if (body) headers["content-type"] = "application/json";
-  const response = await fetch(dryerAdapterUrl(operation, sourceUrl.search).toString(), { method: spec.method, headers, body, signal: AbortSignal.timeout(12_000) });
-  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
-  const message = typeof payload.error === "string" ? payload.error : typeof payload.message === "string" ? payload.message : "干衣机适配器请求失败";
-  const result = Response.json(response.ok ? { ok: true, data: payload } : { ok: false, message }, { status: response.ok ? 200 : response.status });
-  const setCookie = response.headers.get("set-cookie");
-  if (setCookie) result.headers.set("set-cookie", setCookie);
-  return result;
+  const expected = OPERATIONS[operation]; if (request.method !== expected) return Response.json({ ok: false, message: "请求方法不支持" }, { status: 405 });
+  const url = new URL(request.url); const body = expected === "POST" ? await json(request) : {};
+  if (operation === "sms") { const mobile = String(body.mobile || ""); if (!/^1\d{10}$/.test(mobile)) throw new Error("手机号无效"); return Response.json({ ok: true, data: await new OpenDeviceProvider().requestSms(mobile) }); }
+  if (operation === "login") { const mobile = String(body.mobile || ""); const code = String(body.code || ""); if (!/^1\d{10}$/.test(mobile) || !/^\d{6}$/.test(code)) throw new Error("手机号或验证码无效"); const session = await new OpenDeviceProvider().smsLogin(mobile, code); const response = Response.json({ ok: true, data: { connected: true } }); response.headers.set("set-cookie", `${COOKIE}=${encodeURIComponent(sealSession(session))}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`); return response; }
+  const client = provider(request); let data: unknown;
+  if (operation === "homes") data = await client.listHomes();
+  else if (operation === "devices") data = await client.listDevices(id(url.searchParams.get("homeId"), "家庭"));
+  else { const deviceId = id(expected === "GET" ? url.searchParams.get("deviceId") : body.deviceId, "设备"); if (operation === "status") data = await client.status(deviceId); else if (operation === "program") data = await client.program(deviceId, Number(body.programId)); else if (operation === "power") data = await client.power(deviceId, Boolean(body.power)); else data = await client.action(deviceId, String(body.action || ""), body.data || {}); }
+  return Response.json({ ok: true, data });
 }

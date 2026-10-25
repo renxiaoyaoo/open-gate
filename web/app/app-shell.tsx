@@ -6,7 +6,7 @@ type Feature = "gate" | "dryer";
 
 const features = [
   { id: "gate" as const, label: "门禁", detail: "OpenGate", icon: DoorOpen },
-  { id: "dryer" as const, label: "干衣机", detail: "美居设备", icon: HousePlug },
+  { id: "dryer" as const, label: "智能家电", detail: "OpenDevice", icon: HousePlug },
 ];
 
 export function AppShell({ feature }: { feature: Feature }) {

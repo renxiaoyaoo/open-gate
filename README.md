@@ -1,10 +1,15 @@
-# OpenGate
+# OpenHome
 
-OpenGate is a self-hosted access hub for multiple provider accounts, doors, communities, and client devices. Every client can add or remove accounts, open a door, and request a temporary access code through the same Web UI or OpenAPI.
+OpenHome is a self-hosted home-control hub. Its shared Web and API foundation hosts focused modules: OpenGate for access control and OpenDevice for smart appliances.
 
 The public project is provider-neutral: upstream endpoints, credentials, signing material, deployment domains, user data, and captured artifacts are never committed.
 
-## Features
+## Modules
+
+- **OpenGate**: multiple access-provider accounts, aggregated doors, remote opening, and temporary access codes
+- **OpenDevice**: authorized smart-appliance accounts and device controls; dryer status, programs, operation, and appointments are currently implemented
+
+## Shared foundation
 
 - Shared encrypted login state across devices
 - Aggregated doors without exposing account-to-door relationships
