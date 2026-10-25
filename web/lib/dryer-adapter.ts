@@ -18,6 +18,6 @@ export async function callDryerAdapter(operation: DryerOperation, request: Reque
   const client = provider(request); let data: unknown;
   if (operation === "homes") data = await client.listHomes();
   else if (operation === "devices") data = await client.listDevices(id(url.searchParams.get("homeId"), "家庭"));
-  else { const deviceId = id(expected === "GET" ? url.searchParams.get("deviceId") : body.deviceId, "设备"); if (operation === "status") data = await client.status(deviceId); else if (operation === "program") data = await client.program(deviceId, Number(body.programId)); else if (operation === "power") data = await client.power(deviceId, Boolean(body.power)); else data = await client.action(deviceId, String(body.action || ""), body.data || {}); }
+  else { const deviceId = id(expected === "GET" ? url.searchParams.get("deviceId") : body.deviceId, "设备"); if (operation === "status") data = await client.status(deviceId); else if (operation === "program") data = await client.program(deviceId, Number(body.programId)); else if (operation === "power") data = await client.power(deviceId, Boolean(body.power)); else { const action = String(body.action || ""); if (action === "appointmentDrying") await client.power(deviceId, true); data = await client.action(deviceId, action, body.data || {}); } }
   return Response.json({ ok: true, data });
 }
