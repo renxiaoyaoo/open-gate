@@ -35,4 +35,4 @@ Node.js 22.13 or newer is required. Local state is stored in `web/data/open-home
 
 Cloudflare is an optional adapter, not a core requirement. See [`deploy/cloudflare`](deploy/cloudflare) for the D1/Workers template. Deployment domains and Cloudflare account identifiers belong in private, ignored configuration.
 
-See [architecture](web/docs/central-architecture.md), [OpenAPI](web/docs/openapi.yaml), [deployment guide](docs/deployment.md), and [repository boundaries](docs/repository-layout.md).
+See [architecture](web/docs/central-architecture.md), [client roadmap](docs/client-roadmap.md), [OpenAPI](web/docs/openapi.yaml), [deployment guide](docs/deployment.md), and [repository boundaries](docs/repository-layout.md).
