@@ -37,7 +37,8 @@ export class OpenDeviceProvider {
     const mapping = await this.request("/v2/appliance/thing/template/mapping", { data: this.general({ homeGroupId: homeId, applianceCodes: [applianceCode], screenVersion: "11.7.15", protocolVersion: 0, platform: "app", needOldTemplate: 1 }) }) as Array<{ currentUiTemplateId?: number | string; currentUiJsId?: number | string }>;
     const item = Array.isArray(mapping) ? mapping[0] : undefined;
     if (!item) throw new Error("OpenDevice template mapping is unavailable");
-    return this.request("/v2/appliance/thing/template/get", { data: this.general({ uiTemplateIds: item.currentUiTemplateId ? [Number(item.currentUiTemplateId)] : null, uiJsIds: item.currentUiJsId ? [Number(item.currentUiJsId)] : null, platform: "app" }) });
+    const templates = await this.request("/v2/appliance/thing/template/get", { data: this.general({ uiTemplateIds: item.currentUiTemplateId ? [Number(item.currentUiTemplateId)] : null, uiJsIds: item.currentUiJsId ? [Number(item.currentUiJsId)] : null, platform: "app" }) });
+    return { mapping, templates };
   }
   status(deviceId: string) { return this.thing("GET", `/v1/thing/properties/${deviceId}`); }
   program(deviceId: string, programId: number) { if (!Number.isInteger(programId) || programId < 0 || programId > 65535) throw new Error("Unsupported dryer program"); return this.thing("PUT", `/v1/thing/properties/${deviceId}`, { "dryer.currentDryingProgramId": programId }); }
