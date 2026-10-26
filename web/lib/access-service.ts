@@ -1,6 +1,7 @@
 import { audit, completedIdempotentOpen, getDoorByPublicId, listActiveAccountIds, listPublicDoors, loadCentralSession, persistCentralSession } from "./central";
 import { centralDoors } from "./provider-service";
 import { doorPassword, isAuthenticationExpired, isSuccess, openDoorBody, providerPost, upstreamMessage } from "./provider";
+import { accessRoute } from "./provider-bundle.ts";
 
 /** Refresh every provider account while keeping account identity inside the service boundary. */
 export async function refreshPublicDoors() {
@@ -22,7 +23,7 @@ export async function openPublicDoor(publicId: string, idempotencyKey: string) {
   const target = `${door.communityId}:${door.doorControlId}`;
   try {
     const session = await loadCentralSession(door.accountId);
-    const payload = await providerPost("mobile", "open/doorcontrol/v2/open", openDoorBody(door.doorControlId, door.communityId), { sessionId: session.sessionId, signingToken: session.signingToken, openId: session.openId, signing: "mobile-body", encoding: "query", context: session.context });
+    const payload = await providerPost("mobile", accessRoute("operate"), openDoorBody(door.doorControlId, door.communityId), { sessionId: session.sessionId, signingToken: session.signingToken, openId: session.openId, signing: "mobile-body", encoding: "query", context: session.context });
     await persistCentralSession(door.accountId, session);
     const ok = isSuccess(payload); const message = upstreamMessage(payload, ok ? "开门请求成功" : "开门失败");
     await audit(door.accountId, "door.open", target, ok, message, idempotencyKey || undefined);

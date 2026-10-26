@@ -6,7 +6,7 @@ if (!file || process.argv[3] !== "--yes") {
   throw new Error("Usage: node rotate-session-key.mjs <private-env-file> --yes\nRotating this key invalidates every stored login session.");
 }
 
-const name = "OPENGATE_SESSION_ENCRYPTION_KEY";
+const name = "OPENHOME_SESSION_ENCRYPTION_KEY";
 const source = readFileSync(file, "utf8");
 const value = randomBytes(32).toString("hex");
 const line = new RegExp(`^${name}=.*$`, "m");

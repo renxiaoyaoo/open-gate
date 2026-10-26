@@ -2,37 +2,36 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-process.env.OPENGATE_PROVIDER_APP_ID = "test-app";
-process.env.OPENGATE_PROVIDER_APP_SECRET = "test-secret";
-process.env.OPENGATE_PROVIDER_MOBILE_AES_KEY = "FBC213C4C7BEEBD2AA4EDBF0F681C41B";
-process.env.OPENGATE_PROVIDER_SIGNING_KEY = "test-signing-key";
-process.env.OPENGATE_PROVIDER_MOBILE_URL = "https://mobile.provider.example/api/";
-process.env.OPENGATE_PROVIDER_APP_URL = "https://app.provider.example/";
-process.env.OPENGATE_PROVIDER_GATEWAY_URL = "https://gateway.provider.example/";
-const { ALL_DOORS_PATH, HOME_DOORS_PATH, UpstreamError, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, encryptMobile, isAuthenticationExpired, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
+process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify({ schemaVersion: 1, access: {
+  baseUrls: { mobile: "https://mobile.provider.example/api/", app: "https://app.provider.example/", gateway: "https://gateway.provider.example/" },
+  credentials: { appId: "test-app", appSecret: "test-secret", encryptionKey: "FBC213C4C7BEEBD2AA4EDBF0F681C41B", signingKey: "test-signing-key" },
+  client: { version: "5.3.0", channel: "test", vendor: "test", versionCode: "1", platform: "0" },
+  routes: { login: "account/login", profile: "account/profile", communities: "items/groups", homeItems: "items/home", allItems: "items/all", sortItems: "items/sort", operate: "items/operate", sms: "account/sms" },
+  passwordModels: ["model-with-code"],
+}, device: {
+  baseUrl: "https://device.provider.example", credentials: { appId: "test", appKey: "test", iotKey: "test", hmacKey: "test", deviceId: "test" },
+  client: { version: "1", secretVersion: "1", platformId: "1", clientType: "1", language: "en", source: "test", module: "test" },
+  routes: { sms: "/account/sms", login: "/account/login", homes: "/homes", devices: "/devices", templateMap: "/templates/map", templateGet: "/templates/get", properties: "/properties/{deviceId}", action: "/actions/{action}/{deviceId}" },
+  properties: { program: "program", power: "power" }, actions: { start: "start", pause: "pause", schedule: "schedule", cancelSchedule: "cancel" },
+} });
+const { UpstreamError, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, encryptMobile, isAuthenticationExpired, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
 const { publicDoor } = await import("../lib/public-door.ts");
 const { personalDisplayName } = await import("../lib/account-name.ts");
 
 test("routes configured provider APIs", () => {
-  assert.equal(providerUrl("gateway", "member/sms/sendSecurityCode").href, "https://gateway.provider.example/member/sms/sendSecurityCode");
-  assert.equal(providerUrl("mobile", "app/v1/login").href, "https://mobile.provider.example/api/app/v1/login");
+  assert.equal(providerUrl("gateway", "account/sms").href, "https://gateway.provider.example/account/sms");
+  assert.equal(providerUrl("mobile", "account/login").href, "https://mobile.provider.example/api/account/login");
 });
 
 test("matches the provider app's literal sessionId URL concatenation", () => {
-  const url = providerUrl("mobile", "app/v1/personal/info");
-  assert.equal(appendRawSessionId(url, "abc:0123456789abcdef"), "https://mobile.provider.example/api/app/v1/personal/info?sessionId=abc:0123456789abcdef");
+  const url = providerUrl("mobile", "account/profile");
+  assert.equal(appendRawSessionId(url, "abc:0123456789abcdef"), "https://mobile.provider.example/api/account/profile?sessionId=abc:0123456789abcdef");
   assert.throws(() => appendRawSessionId(url, "unsafe&tail"));
 });
 
-test("uses the provider app personal-info initialization endpoint before community loading", () => {
-  assert.equal(providerUrl("mobile", "app/v1/personal/info").toString(), "https://mobile.provider.example/api/app/v1/personal/info");
-  assert.equal(providerUrl("mobile", "app/user/v2/communityInfo").toString(), "https://mobile.provider.example/api/app/user/v2/communityInfo");
-});
-
-test("keeps complete and home door-list endpoints distinct", () => {
-  assert.equal(ALL_DOORS_PATH, "app/user/v2/queryAllUserDoorByCache");
-  assert.equal(HOME_DOORS_PATH, "app/user/v2/queryUserDoorByCacheNew");
-  assert.notEqual(ALL_DOORS_PATH, HOME_DOORS_PATH);
+test("keeps provider routes outside product code", () => {
+  assert.equal(providerUrl("mobile", "account/profile").toString(), "https://mobile.provider.example/api/account/profile");
+  assert.equal(providerUrl("mobile", "items/groups").toString(), "https://mobile.provider.example/api/items/groups");
 });
 
 test("emits the provider app JSON wire contract for authenticated body requests", async () => {
@@ -43,7 +42,7 @@ test("emits the provider app JSON wire contract for authenticated body requests"
     return new Response(JSON.stringify({ code: 0, data: [] }), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
-    await providerPost("mobile", "app/user/v2/communityInfo", { method: "communityInfo" }, {
+    await providerPost("mobile", "items/groups", { method: "communityInfo" }, {
       sessionId: "session:0123456789abcdef", signingToken: "session:0123456789abcdef", openId: "device-id", signing: "mobile-body", encoding: "json",
     });
   } finally { globalThis.fetch = originalFetch; }
@@ -72,7 +71,7 @@ test("emits login as JSON request body without an empty sessionId", async () => 
     return new Response(JSON.stringify({ code: 0, data: { sessionId: "session" } }), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
-    await providerPost("mobile", "app/v1/login", { mobile: "ciphertext", smsCode: "123456", appChannel: 1 }, {
+    await providerPost("mobile", "account/login", { mobile: "ciphertext", smsCode: "123456", appChannel: 1 }, {
       openId: "device-id", signing: "mobile-body", encoding: "json",
     });
   } finally { globalThis.fetch = originalFetch; }
@@ -96,7 +95,7 @@ test("emits open-door fields only in the URL and sends no request body", async (
     return new Response(JSON.stringify({ code: 0 }), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
-    await providerPost("mobile", "open/doorcontrol/v2/open", openDoorBody(12, 8), {
+    await providerPost("mobile", "items/operate", openDoorBody(12, 8), {
       sessionId: "session", signingToken: "session", openId: "device-id", signing: "mobile-body", encoding: "query",
     });
   } finally { globalThis.fetch = originalFetch; }
@@ -239,8 +238,8 @@ test("normalizes and deduplicates only real door records", () => {
 
 test("extracts community codes and preserves password-capable door metadata", () => {
   assert.deepEqual([...communityCodes({ data: [{ communityId: 8, communityCode: "CQ001" }] })], [[8, "CQ001"]]);
-  assert.deepEqual(normalizeDoors([{ doorControlId: 12, macAddress: "AA:BB", deviceModel: "QL22D-A" }], 8, "CQ001")[0], {
-    doorControlId: 12, communityId: 8, name: "门禁 12", communityCode: "CQ001", mac: "AA:BB", deviceModel: "QL22D-A", passwordSupported: true,
+  assert.deepEqual(normalizeDoors([{ doorControlId: 12, macAddress: "AA:BB", deviceModel: "model-with-code" }], 8, "CQ001")[0], {
+    doorControlId: 12, communityId: 8, name: "门禁 12", communityCode: "CQ001", mac: "AA:BB", deviceModel: "model-with-code", passwordSupported: true,
   });
 });
 
@@ -250,7 +249,7 @@ test("reproduces the provider app four-digit ten-minute door password", () => {
   const expected = createHash("md5").update(`AA:BB:CC:DD:EE:FF${bucket}CQ001`).digest("hex").replace(/[^0-9]/g, "").slice(-4);
   assert.equal(result.password, expected);
   assert.equal(result.validUntil, new Date(bucket + 600000).toISOString());
-  assert.equal(supportsDoorPassword("QL22D-A"), true);
+  assert.equal(supportsDoorPassword("model-with-code"), true);
   assert.equal(supportsDoorPassword("unknown"), false);
 });
 

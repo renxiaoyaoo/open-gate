@@ -6,7 +6,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 const databaseId = process.env.OPENHOME_CF_DATABASE_ID;
 const databaseName = process.env.OPENHOME_CF_DATABASE_NAME || "open-home";
 const customDomain = process.env.OPENHOME_CF_CUSTOM_DOMAIN || "";
-const apiEnabled = process.env.OPENGATE_API_ENABLED === "1" ? "1" : "0";
+const apiEnabled = process.env.OPENHOME_ACCESS_ENABLED === "1" ? "1" : "0";
 if (!databaseId) throw new Error("Set OPENHOME_CF_DATABASE_ID in the private deployment environment");
 if (customDomain && !/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(customDomain)) {
   throw new Error("OPENHOME_CF_CUSTOM_DOMAIN must be a hostname");

@@ -1,49 +1,52 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { DRYER_PROGRAM_IDS, DRYER_PROGRAMS } from "./dryer-programs.ts";
+import { deviceRoute, providerBundle } from "./provider-bundle.ts";
 
 export type OpenDeviceSession = { uid: string; accessToken: string; deviceId: string; displayName?: string };
-function required(name: string) { const value = process.env[name]?.trim(); if (!value) throw new Error(`OpenDevice provider configuration is incomplete (${name})`); return value; }
 function stamp(now = new Date()) { return now.toISOString().replace(/[-:T]/g, "").slice(0, 14); }
 
 export class OpenDeviceProvider {
-  private readonly url = required("OPENDEVICE_PROVIDER_URL");
-  private readonly appId = required("OPENDEVICE_PROVIDER_APP_ID");
-  private readonly appKey = required("OPENDEVICE_PROVIDER_APP_KEY");
-  private readonly iotKey = required("OPENDEVICE_PROVIDER_IOT_KEY");
-  private readonly hmacKey = required("OPENDEVICE_PROVIDER_HMAC_KEY");
+  private readonly config = providerBundle().device;
+  private readonly url = this.config.baseUrl;
+  private readonly appId = this.config.credentials.appId;
+  private readonly appKey = this.config.credentials.appKey;
+  private readonly iotKey = this.config.credentials.iotKey;
+  private readonly hmacKey = this.config.credentials.hmacKey;
   readonly deviceId: string;
   private uid?: string;
   private accessToken?: string;
 
-  constructor(session?: OpenDeviceSession) { this.deviceId = session?.deviceId || required("OPENDEVICE_PROVIDER_DEVICE_ID"); this.uid = session?.uid; this.accessToken = session?.accessToken; }
-  private general(extra: Record<string, unknown> = {}) { return { src: this.appId, format: "2", stamp: stamp(), platformId: "1", deviceId: this.deviceId, reqId: randomBytes(16).toString("hex"), uid: this.uid, clientType: "1", appId: this.appId, language: "zh_CN", ...extra }; }
+  constructor(session?: OpenDeviceSession) { this.deviceId = session?.deviceId || this.config.credentials.deviceId; this.uid = session?.uid; this.accessToken = session?.accessToken; }
+  private general(extra: Record<string, unknown> = {}) { const client = this.config.client; return { src: this.appId, format: "2", stamp: stamp(), platformId: client.platformId, deviceId: this.deviceId, reqId: randomBytes(16).toString("hex"), uid: this.uid, clientType: client.clientType, appId: this.appId, language: client.language, ...extra }; }
   private async request(alias: string, options: { method?: string; data?: unknown; query?: string; headers?: Record<string, string> } = {}) {
     const method = options.method || "POST"; const body = options.data === undefined ? "" : JSON.stringify(options.data); const nonce = String(Math.floor(Date.now() / 1000));
-    const headers: Record<string, string> = { "content-type": "application/json; charset=utf-8", version: "11.7.15", secretVersion: "1", random: nonce, sign: createHmac("sha256", this.hmacKey).update(`${this.iotKey}${body}${nonce}`).digest("hex"), ...options.headers };
+    const headers: Record<string, string> = { "content-type": "application/json; charset=utf-8", version: this.config.client.version, secretVersion: this.config.client.secretVersion, random: nonce, sign: createHmac("sha256", this.hmacKey).update(`${this.iotKey}${body}${nonce}`).digest("hex"), ...options.headers };
     if (this.uid) headers.uid = this.uid; if (this.accessToken) headers.accessToken = this.accessToken;
     const response = await fetch(`${this.url}${alias}${options.query || ""}`, { method, headers, body: method === "GET" ? undefined : body, signal: AbortSignal.timeout(12_000) });
     const payload = await response.json().catch(() => ({ code: response.status, msg: "invalid response" })) as { code?: string | number; msg?: string; data?: unknown };
     if (!response.ok || String(payload.code) !== "0") throw new Error(`OpenDevice provider: ${payload.code ?? response.status} ${payload.msg || "request failed"}`); return payload.data;
   }
-  requestSms(mobile: string) { return this.request("/mj/user/getSmsCode", { data: { data: { deviceId: this.deviceId }, iotData: { type: 9, mobile, iotAppId: this.appId }, timestamp: stamp() } }); }
+  requestSms(mobile: string) { return this.request(deviceRoute("sms"), { data: { data: { deviceId: this.deviceId }, iotData: { type: 9, mobile, iotAppId: this.appId }, timestamp: stamp() } }); }
   async smsLogin(mobile: string, smsCode: string) {
-    const result = await this.request("/v6/mj/user/register", { data: { data: { appKey: this.appKey, appVersion: "11.7.15", deviceId: this.deviceId, deviceName: "OpenHome", osVersion: "Cloudflare", platform: 2 }, iotData: { mobile, smsCode, iotAppId: this.appId, appVersion: "11.7.15", deviceId: this.deviceId, loginType: 0 }, timestamp: stamp() } }) as { iotUserId?: string; userInfo?: { uid?: string; userId?: string; nickName?: string; nickname?: string; name?: string }; mdata?: { accessToken?: string; userInfo?: { uid?: string; nickName?: string; nickname?: string } } };
+    const result = await this.request(deviceRoute("login"), { data: { data: { appKey: this.appKey, appVersion: this.config.client.version, deviceId: this.deviceId, deviceName: "OpenHome", osVersion: "Cloudflare", platform: 2 }, iotData: { mobile, smsCode, iotAppId: this.appId, appVersion: this.config.client.version, deviceId: this.deviceId, loginType: 0 }, timestamp: stamp() } }) as { iotUserId?: string; userInfo?: { uid?: string; userId?: string; nickName?: string; nickname?: string; name?: string }; mdata?: { accessToken?: string; userInfo?: { uid?: string; nickName?: string; nickname?: string } } };
     const uid = result.userInfo?.uid || result.userInfo?.userId || result.iotUserId || result.mdata?.userInfo?.uid; const accessToken = result.mdata?.accessToken;
     const displayName = result.userInfo?.nickName || result.userInfo?.nickname || result.userInfo?.name || result.mdata?.userInfo?.nickName || result.mdata?.userInfo?.nickname || `${mobile.slice(0, 3)}****${mobile.slice(-4)}`;
     if (!uid || !accessToken) throw new Error("OpenDevice login response did not contain a session"); return { uid: String(uid), accessToken: String(accessToken), deviceId: this.deviceId, displayName };
   }
-  listHomes() { return this.request("/v1/homegroup/list/get", { data: this.general() }); }
-  listDevices(homeId: string) { return this.request("/v1/appliance/home/list/get", { data: this.general({ homegroupId: homeId }) }); }
+  listHomes() { return this.request(deviceRoute("homes"), { data: this.general() }); }
+  listDevices(homeId: string) { return this.request(deviceRoute("devices"), { data: this.general({ homegroupId: homeId }) }); }
   async capabilities(homeId: string, applianceCode: string) {
-    const mapping = await this.request("/v2/appliance/thing/template/mapping", { data: this.general({ homeGroupId: homeId, applianceCodes: [applianceCode], screenVersion: "11.7.15", protocolVersion: 0, platform: "app", needOldTemplate: 1 }) }) as Array<{ currentUiTemplateId?: number | string; currentUiJsId?: number | string }>;
+    const mapping = await this.request(deviceRoute("templateMap"), { data: this.general({ homeGroupId: homeId, applianceCodes: [applianceCode], screenVersion: this.config.client.version, protocolVersion: 0, platform: "app", needOldTemplate: 1 }) }) as Array<{ currentUiTemplateId?: number | string; currentUiJsId?: number | string }>;
     const item = Array.isArray(mapping) ? mapping[0] : undefined;
     if (!item) throw new Error("OpenDevice template mapping is unavailable");
-    await this.request("/v2/appliance/thing/template/get", { data: this.general({ uiTemplateIds: item.currentUiTemplateId ? [Number(item.currentUiTemplateId)] : null, uiJsIds: item.currentUiJsId ? [Number(item.currentUiJsId)] : null, platform: "app" }) });
+    await this.request(deviceRoute("templateGet"), { data: this.general({ uiTemplateIds: item.currentUiTemplateId ? [Number(item.currentUiTemplateId)] : null, uiJsIds: item.currentUiJsId ? [Number(item.currentUiJsId)] : null, platform: "app" }) });
     return { programs: DRYER_PROGRAMS };
   }
-  status(deviceId: string) { return this.thing("GET", `/v1/thing/properties/${deviceId}`); }
-  program(deviceId: string, programId: number) { if (!DRYER_PROGRAM_IDS.has(programId)) throw new Error("Unsupported dryer program"); return this.thing("PUT", `/v1/thing/properties/${deviceId}`, { "dryer.currentDryingProgramId": programId }); }
-  power(deviceId: string, power: boolean) { return this.thing("PUT", `/v1/thing/properties/${deviceId}`, { "dryer.power": power }); }
-  action(deviceId: string, action: string, data: unknown) { if (!["startDrying", "pauseDrying", "appointmentDrying", "cancelAppointmentDrying"].includes(action)) throw new Error("Unsupported dryer action"); return this.thing("POST", `/v1/thing/action/dryer/${action}/${deviceId}`, data); }
-  private thing(method: string, alias: string, data?: unknown) { return this.request(alias, { method, data, query: `?requestId=${randomBytes(16).toString("hex")}&sync=true`, headers: { caller: this.appId, "call-source": "mideaApp", "call-module": "appPlugin" } }); }
+  status(deviceId: string) { return this.thing("GET", deviceRoute("properties", { deviceId })); }
+  program(deviceId: string, programId: number) { if (!DRYER_PROGRAM_IDS.has(programId)) throw new Error("Unsupported dryer program"); return this.thing("PUT", deviceRoute("properties", { deviceId }), { [this.config.properties.program]: programId }); }
+  power(deviceId: string, power: boolean) { return this.thing("PUT", deviceRoute("properties", { deviceId }), { [this.config.properties.power]: power }); }
+  action(deviceId: string, action: keyof ProviderBundleActions, data: unknown) { const target = this.config.actions[action]; if (!target) throw new Error("Unsupported dryer action"); return this.thing("POST", deviceRoute("action", { action: target, deviceId }), data); }
+  private thing(method: string, alias: string, data?: unknown) { return this.request(alias, { method, data, query: `?requestId=${randomBytes(16).toString("hex")}&sync=true`, headers: { caller: this.appId, "call-source": this.config.client.source, "call-module": this.config.client.module } }); }
 }
+
+type ProviderBundleActions = ReturnType<typeof providerBundle>["device"]["actions"];

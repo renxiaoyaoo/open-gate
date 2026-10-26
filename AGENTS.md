@@ -1,4 +1,4 @@
-# OpenGate project rules
+# OpenHome project rules
 
 Follow the user's global Codex workflow. Keep this public repository portable
 and free of personal infrastructure, provider endpoints, credentials, sessions,

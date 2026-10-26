@@ -7,8 +7,8 @@ import { openSession, sealSession } from "./session-crypto";
 export type CentralSession = { sessionId: string; signingToken: string; openId: string; context: ProviderRequestContext };
 type DoorRow = { publicId: string | null; accountId: string; communityId: number; doorControlId: number; name: string; communityName: string | null; communityCode: string | null; mac: string | null; deviceModel: string | null; passwordSupported: number; providerFeatured: number; selected: number | null; refreshedAt: number };
 
-export function assertCentralEnabled() { if (process.env.OPENGATE_API_ENABLED !== "1") throw new Error("OpenAPI is disabled until access control is configured"); }
-function encryptionKey() { const value = process.env.OPENGATE_SESSION_ENCRYPTION_KEY || ""; const key = /^[0-9a-f]{64}$/i.test(value) ? Buffer.from(value, "hex") : Buffer.from(value, "base64"); if (key.length !== 32) throw new Error("Session encryption key is not configured"); return key; }
+export function assertCentralEnabled() { if (process.env.OPENHOME_ACCESS_ENABLED !== "1") throw new Error("OpenAPI is disabled until access control is configured"); }
+function encryptionKey() { const value = process.env.OPENHOME_SESSION_ENCRYPTION_KEY || ""; const key = /^[0-9a-f]{64}$/i.test(value) ? Buffer.from(value, "hex") : Buffer.from(value, "base64"); if (key.length !== 32) throw new Error("Session encryption key is not configured"); return key; }
 export function validAccountId(value: string) { if (!/^[a-z0-9][a-z0-9_-]{0,47}$/i.test(value)) throw new Error("Invalid account ID"); return value; }
 export function maskMobile(mobile: string) { return `${mobile.slice(0, 3)}****${mobile.slice(-4)}`; }
 function mobileFingerprint(mobile: string) { return createHmac("sha256", encryptionKey()).update(mobile).digest("hex"); }

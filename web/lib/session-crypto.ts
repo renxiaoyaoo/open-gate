@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 function encryptionKey() {
-  const value = process.env.OPENGATE_SESSION_ENCRYPTION_KEY || "";
+  const value = process.env.OPENHOME_SESSION_ENCRYPTION_KEY || "";
   const key = /^[0-9a-f]{64}$/i.test(value) ? Buffer.from(value, "hex") : Buffer.from(value, "base64");
   if (key.length !== 32) throw new Error("Session encryption key is not configured");
   return key;

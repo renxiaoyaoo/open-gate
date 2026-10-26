@@ -1,19 +1,5 @@
 import { createCipheriv, createHash, randomInt, randomUUID } from "node:crypto";
-
-const SERVICE_BASE_URLS = {
-  mobile: process.env.OPENGATE_PROVIDER_MOBILE_URL || "",
-  app: process.env.OPENGATE_PROVIDER_APP_URL || "",
-  gateway: process.env.OPENGATE_PROVIDER_GATEWAY_URL || "",
-} as const;
-const APP_ID = process.env.OPENGATE_PROVIDER_APP_ID || "";
-const APP_SECRET = process.env.OPENGATE_PROVIDER_APP_SECRET || "";
-const MOBILE_AES_KEY = process.env.OPENGATE_PROVIDER_MOBILE_AES_KEY || "";
-const MOBILE_SIGNING_KEY = process.env.OPENGATE_PROVIDER_SIGNING_KEY || "";
-const APP_VERSION = process.env.OPENGATE_PROVIDER_APP_VERSION || "5.3.0";
-const APP_CHANNEL = process.env.OPENGATE_PROVIDER_APP_CHANNEL || "honor";
-const APP_VENDOR = process.env.OPENGATE_PROVIDER_APP_VENDOR || "Google";
-export const ALL_DOORS_PATH = "app/user/v2/queryAllUserDoorByCache";
-export const HOME_DOORS_PATH = "app/user/v2/queryUserDoorByCacheNew";
+import { providerBundle } from "./provider-bundle.ts";
 type JsonMap = Record<string, unknown>;
 export type ProviderRequestContext = { cookies: Record<string, string> };
 
@@ -23,12 +9,15 @@ export class UpstreamError extends Error {
 }
 
 function assertSecrets(names: Array<"appid" | "secret" | "aes">) {
+  const credentials = providerBundle().access.credentials;
+  const APP_ID = credentials.appId; const APP_SECRET = credentials.appSecret; const MOBILE_AES_KEY = credentials.encryptionKey;
   const missing = names.filter((name) => name === "appid" ? !APP_ID : name === "secret" ? !APP_SECRET : !MOBILE_AES_KEY);
   if (missing.length) throw new UpstreamError("Provider configuration is incomplete");
 }
 
 export function signHeaders(params: JsonMap): Record<string, string> {
   assertSecrets(["appid", "secret"]);
+  const { appId: APP_ID, appSecret: APP_SECRET } = providerBundle().access.credentials;
   const base = { appid: APP_ID, nonce: String(randomInt(1000, 10000)), timestamp: String(Date.now()), version: "v2" };
   const signing: Record<string, unknown> = { ...base, ...params };
   const canonical = Object.keys(signing).sort().map((key) => `${key}=${String(signing[key] ?? "")}`).join("&");
@@ -39,6 +28,8 @@ type MobileSignOptions = { nonce?: string; timestamp?: number; token?: string; v
 
 /** Build the provider's signed mobile request body. */
 export function signMobileBody(params: JsonMap, options: MobileSignOptions = {}): JsonMap {
+  const { signingKey: MOBILE_SIGNING_KEY } = providerBundle().access.credentials;
+  const { version: APP_VERSION } = providerBundle().access.client;
   if (!MOBILE_SIGNING_KEY) throw new UpstreamError("Provider signing key is not configured");
   const nonce = options.nonce ?? String(randomInt(0, 100000)).padStart(5, "0");
   if (!/^\d{5}$/.test(nonce)) throw new UpstreamError("随机数格式错误");
@@ -67,6 +58,7 @@ export function signMobileBody(params: JsonMap, options: MobileSignOptions = {})
 
 export function encryptMobile(mobile: string): string {
   assertSecrets(["aes"]);
+  const MOBILE_AES_KEY = providerBundle().access.credentials.encryptionKey;
   if (!/^[0-9a-fA-F]{32}$/.test(MOBILE_AES_KEY)) throw new UpstreamError("手机号加密参数格式错误");
   // The configured 32-character key is hexadecimal AES-128 key material.
   const key = Buffer.from(MOBILE_AES_KEY, "hex");
@@ -80,11 +72,11 @@ export function encryptMobile(mobile: string): string {
 
 export function deviceId(value?: string) { return value && /^[0-9a-f-]{36}$/i.test(value) ? value : randomUUID(); }
 
-export type ProviderService = keyof typeof SERVICE_BASE_URLS;
+export type ProviderService = "mobile" | "app" | "gateway";
 
 export function providerUrl(service: ProviderService, path: string) {
   if (path.startsWith("/") || path.includes("://")) throw new UpstreamError("上游接口路径无效");
-  const base = SERVICE_BASE_URLS[service];
+  const base = providerBundle().access.baseUrls[service];
   if (!base) throw new UpstreamError(`Provider endpoint is not configured: ${service}`);
   return new URL(path, base);
 }
@@ -112,14 +104,15 @@ export function cookieHeader(context: ProviderRequestContext) {
 }
 
 export async function providerPost(service: ProviderService, path: string, body: JsonMap, options?: { sessionId?: string; signingToken?: string | null; signing?: "legacy-header" | "mobile-body"; signingExclude?: string[]; openId?: string; encoding?: "json" | "form" | "multipart" | "query"; context?: ProviderRequestContext }) {
+  const client = providerBundle().access.client;
   const url = providerUrl(service, path);
   const signingToken = options?.signingToken === undefined ? options?.sessionId : options.signingToken ?? undefined;
   const requestBody = options?.signing === "mobile-body" ? signMobileBody(body, { token: signingToken, exclude: options.signingExclude }) : body;
   const signedHeaders = options?.signing === "legacy-header" ? signHeaders(body) : {};
   const encoding = options?.encoding ?? "json";
   const headers: Record<string, string> = {
-    ...(encoding === "multipart" ? {} : { "content-type": encoding === "form" ? "application/x-www-form-urlencoded" : "application/json; charset=utf-8" }), accept: "application/json", qversioncode: "3150",
-    qchannel: APP_CHANNEL, qplatform: "0", openId: options?.openId || randomUUID(), qvendor: APP_VENDOR,
+    ...(encoding === "multipart" ? {} : { "content-type": encoding === "form" ? "application/x-www-form-urlencoded" : "application/json; charset=utf-8" }), accept: "application/json", qversioncode: client.versionCode,
+    qchannel: client.channel, qplatform: client.platform, openId: options?.openId || randomUUID(), qvendor: client.vendor,
     ...signedHeaders,
   };
   const cookies = options?.context ? cookieHeader(options.context) : "";
@@ -196,7 +189,7 @@ export function communityIds(payload: unknown): number[] {
   return [...found];
 }
 
-const PASSWORD_MODELS = new Set(["QLG2020-R8", "QL21D-26JT", "QLG19-C215", "QLL19-C32", "21D-AD", "QL23D-2623", "QL22D-A", "23D-2623A", "QLG2020-68A"]);
+function passwordModels() { return new Set(providerBundle().access.passwordModels || []); }
 export type Door = { doorControlId: number; communityId: number; name: string; communityName?: string; communityCode?: string; mac?: string; deviceModel?: string; passwordSupported?: boolean; providerFeatured?: boolean; providerOrder?: number };
 
 type DoorSortCategory = "gate" | "building" | "custom";
@@ -227,7 +220,7 @@ function doorUseforCategory(value: unknown): DoorSortCategory | undefined {
   return undefined;
 }
 
-/** Recover the provider's door-sort state from queryAllUserDoorByCache. */
+/** Recover the provider's door-sort state from the configured complete list. */
 export function doorSortState(payload: unknown): DoorSortState {
   let source: JsonMap | null = null;
   walk(payload, (item) => {
@@ -297,7 +290,7 @@ export function normalizeDoors(payload: unknown, fallbackCommunityId: number, co
       ...(communityName ? { communityName } : {}),
       ...(communityCode ? { communityCode } : {}),
       ...(mac ? { mac } : {}),
-      ...(deviceModel ? { deviceModel, passwordSupported: PASSWORD_MODELS.has(deviceModel) } : {}),
+      ...(deviceModel ? { deviceModel, passwordSupported: passwordModels().has(deviceModel) } : {}),
     });
   });
   return [...found.values()];
@@ -312,7 +305,7 @@ export function doorPassword(mac: string, communityCode: string, now = Date.now(
   return { password: digits.slice(-4), validUntil: new Date(timeBucket + 600_000).toISOString() };
 }
 
-export function supportsDoorPassword(deviceModel?: string) { return Boolean(deviceModel && PASSWORD_MODELS.has(deviceModel)); }
+export function supportsDoorPassword(deviceModel?: string) { return Boolean(deviceModel && passwordModels().has(deviceModel)); }
 
 export function dedupeDoors(doors: Door[]) {
   const found = new Map<string, Door>();
