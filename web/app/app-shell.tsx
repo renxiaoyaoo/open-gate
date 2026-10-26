@@ -1,4 +1,5 @@
 import { DoorOpen, HousePlug } from "lucide-react";
+import Link from "next/link";
 import { DoorApp } from "./door-app";
 import { DryerApp } from "./dryer-app";
 
@@ -19,7 +20,7 @@ export function AppShell({ feature }: { feature: Feature }) {
           {features.map((item) => {
             const Icon = item.icon;
             const active = feature === item.id;
-            return <a key={item.id} href={item.id === "gate" ? "/" : "/?feature=dryer"} aria-current={active ? "page" : undefined} className={`flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition ${active ? "bg-[#2f4f46] text-white shadow-sm" : "text-[#69665f] hover:bg-[#f0ede7]"}`}><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9px] ${active ? "bg-white/12" : "bg-[#ece8e0]"}`}><Icon size={18} /></span><span className="min-w-0"><strong className="block text-sm font-semibold">{item.label}</strong><span className={`block truncate text-[10px] ${active ? "text-white/65" : "text-[#9a968d]"}`}>{item.detail}</span></span></a>;
+            return <Link key={item.id} href={item.id === "gate" ? "/" : "/?feature=dryer"} scroll={false} aria-current={active ? "page" : undefined} className={`flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition ${active ? "bg-[#2f4f46] text-white shadow-sm" : "text-[#69665f] hover:bg-[#f0ede7]"}`}><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9px] ${active ? "bg-white/12" : "bg-[#ece8e0]"}`}><Icon size={18} /></span><span className="min-w-0"><strong className="block text-sm font-semibold">{item.label}</strong><span className={`block truncate text-[10px] ${active ? "text-white/65" : "text-[#9a968d]"}`}>{item.detail}</span></span></Link>;
           })}
         </div>
       </nav>

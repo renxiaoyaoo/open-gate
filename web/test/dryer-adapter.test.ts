@@ -7,5 +7,7 @@ test("routes only fixed dryer adapter operations", () => {
   assert.deepEqual(dryerOperation("sms"), { method: "POST" });
   assert.deepEqual(dryerOperation("status"), { method: "GET" });
   assert.deepEqual(dryerOperation("logout"), { method: "POST" });
+  assert.deepEqual(dryerOperation("profile"), { method: "GET" });
+  assert.deepEqual(dryerOperation("capabilities"), { method: "GET" });
   assert.throws(() => dryerOperation("../../secrets"));
 });

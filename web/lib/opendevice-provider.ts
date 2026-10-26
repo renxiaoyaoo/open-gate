@@ -1,6 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 
-export type OpenDeviceSession = { uid: string; accessToken: string; deviceId: string };
+export type OpenDeviceSession = { uid: string; accessToken: string; deviceId: string; displayName?: string };
 function required(name: string) { const value = process.env[name]?.trim(); if (!value) throw new Error(`OpenDevice provider configuration is incomplete (${name})`); return value; }
 function stamp(now = new Date()) { return now.toISOString().replace(/[-:T]/g, "").slice(0, 14); }
 
@@ -26,14 +26,21 @@ export class OpenDeviceProvider {
   }
   requestSms(mobile: string) { return this.request("/mj/user/getSmsCode", { data: { data: { deviceId: this.deviceId }, iotData: { type: 9, mobile, iotAppId: this.appId }, timestamp: stamp() } }); }
   async smsLogin(mobile: string, smsCode: string) {
-    const result = await this.request("/v6/mj/user/register", { data: { data: { appKey: this.appKey, appVersion: "11.7.15", deviceId: this.deviceId, deviceName: "OpenHome", osVersion: "Cloudflare", platform: 2 }, iotData: { mobile, smsCode, iotAppId: this.appId, appVersion: "11.7.15", deviceId: this.deviceId, loginType: 0 }, timestamp: stamp() } }) as { iotUserId?: string; userInfo?: { uid?: string; userId?: string }; mdata?: { accessToken?: string; userInfo?: { uid?: string } } };
+    const result = await this.request("/v6/mj/user/register", { data: { data: { appKey: this.appKey, appVersion: "11.7.15", deviceId: this.deviceId, deviceName: "OpenHome", osVersion: "Cloudflare", platform: 2 }, iotData: { mobile, smsCode, iotAppId: this.appId, appVersion: "11.7.15", deviceId: this.deviceId, loginType: 0 }, timestamp: stamp() } }) as { iotUserId?: string; userInfo?: { uid?: string; userId?: string; nickName?: string; nickname?: string; name?: string }; mdata?: { accessToken?: string; userInfo?: { uid?: string; nickName?: string; nickname?: string } } };
     const uid = result.userInfo?.uid || result.userInfo?.userId || result.iotUserId || result.mdata?.userInfo?.uid; const accessToken = result.mdata?.accessToken;
-    if (!uid || !accessToken) throw new Error("OpenDevice login response did not contain a session"); return { uid: String(uid), accessToken: String(accessToken), deviceId: this.deviceId };
+    const displayName = result.userInfo?.nickName || result.userInfo?.nickname || result.userInfo?.name || result.mdata?.userInfo?.nickName || result.mdata?.userInfo?.nickname || `${mobile.slice(0, 3)}****${mobile.slice(-4)}`;
+    if (!uid || !accessToken) throw new Error("OpenDevice login response did not contain a session"); return { uid: String(uid), accessToken: String(accessToken), deviceId: this.deviceId, displayName };
   }
   listHomes() { return this.request("/v1/homegroup/list/get", { data: this.general() }); }
   listDevices(homeId: string) { return this.request("/v1/appliance/home/list/get", { data: this.general({ homegroupId: homeId }) }); }
+  async capabilities(homeId: string, applianceCode: string) {
+    const mapping = await this.request("/v2/appliance/thing/template/mapping", { data: this.general({ homeGroupId: homeId, applianceCodes: [applianceCode], screenVersion: "11.7.15", protocolVersion: 0, platform: "app", needOldTemplate: 1 }) }) as Array<{ currentUiTemplateId?: number | string; currentUiJsId?: number | string }>;
+    const item = Array.isArray(mapping) ? mapping[0] : undefined;
+    if (!item) throw new Error("OpenDevice template mapping is unavailable");
+    return this.request("/v2/appliance/thing/template/get", { data: this.general({ uiTemplateIds: item.currentUiTemplateId ? [Number(item.currentUiTemplateId)] : null, uiJsIds: item.currentUiJsId ? [Number(item.currentUiJsId)] : null, platform: "app" }) });
+  }
   status(deviceId: string) { return this.thing("GET", `/v1/thing/properties/${deviceId}`); }
-  program(deviceId: string, programId: number) { if (![2, 26, 42, 43].includes(programId)) throw new Error("Unsupported dryer program"); return this.thing("PUT", `/v1/thing/properties/${deviceId}`, { "dryer.currentDryingProgramId": programId }); }
+  program(deviceId: string, programId: number) { if (!Number.isInteger(programId) || programId < 0 || programId > 65535) throw new Error("Unsupported dryer program"); return this.thing("PUT", `/v1/thing/properties/${deviceId}`, { "dryer.currentDryingProgramId": programId }); }
   power(deviceId: string, power: boolean) { return this.thing("PUT", `/v1/thing/properties/${deviceId}`, { "dryer.power": power }); }
   action(deviceId: string, action: string, data: unknown) { if (!["startDrying", "pauseDrying", "appointmentDrying", "cancelAppointmentDrying"].includes(action)) throw new Error("Unsupported dryer action"); return this.thing("POST", `/v1/thing/action/dryer/${action}/${deviceId}`, data); }
   private thing(method: string, alias: string, data?: unknown) { return this.request(alias, { method, data, query: `?requestId=${randomBytes(16).toString("hex")}&sync=true`, headers: { caller: this.appId, "call-source": "mideaApp", "call-module": "appPlugin" } }); }
