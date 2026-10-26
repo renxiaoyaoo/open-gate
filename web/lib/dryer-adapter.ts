@@ -2,7 +2,7 @@ import { OpenDeviceProvider, type OpenDeviceSession } from "./opendevice-provide
 import { openSession, sealSession } from "./session-crypto.ts";
 
 const COOKIE = "openhome_opendevice";
-const OPERATIONS = { sms: "POST", login: "POST", homes: "GET", devices: "GET", status: "GET", program: "POST", power: "POST", action: "POST" } as const;
+const OPERATIONS = { sms: "POST", login: "POST", logout: "POST", homes: "GET", devices: "GET", status: "GET", program: "POST", power: "POST", action: "POST" } as const;
 export type DryerOperation = keyof typeof OPERATIONS;
 export function dryerOperation(value: string) { if (!(value in OPERATIONS)) throw new Error("不支持的干衣机操作"); return { method: OPERATIONS[value as DryerOperation] }; }
 function cookie(request: Request) { return request.headers.get("cookie")?.split(/;\s*/).find((part) => part.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1); }
@@ -15,6 +15,7 @@ export async function callDryerAdapter(operation: DryerOperation, request: Reque
   const url = new URL(request.url); const body = expected === "POST" ? await json(request) : {};
   if (operation === "sms") { const mobile = String(body.mobile || ""); if (!/^1\d{10}$/.test(mobile)) throw new Error("手机号无效"); return Response.json({ ok: true, data: await new OpenDeviceProvider().requestSms(mobile) }); }
   if (operation === "login") { const mobile = String(body.mobile || ""); const code = String(body.code || ""); if (!/^1\d{10}$/.test(mobile) || !/^\d{6}$/.test(code)) throw new Error("手机号或验证码无效"); const session = await new OpenDeviceProvider().smsLogin(mobile, code); const response = Response.json({ ok: true, data: { connected: true } }); response.headers.set("set-cookie", `${COOKIE}=${encodeURIComponent(sealSession(session))}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`); return response; }
+  if (operation === "logout") { const response = Response.json({ ok: true }); response.headers.set("set-cookie", `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`); return response; }
   const client = provider(request); let data: unknown;
   if (operation === "homes") data = await client.listHomes();
   else if (operation === "devices") data = await client.listDevices(id(url.searchParams.get("homeId"), "家庭"));

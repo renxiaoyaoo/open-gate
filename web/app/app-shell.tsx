@@ -5,8 +5,8 @@ import { DryerApp } from "./dryer-app";
 type Feature = "gate" | "dryer";
 
 const features = [
-  { id: "gate" as const, label: "门禁", detail: "OpenGate", icon: DoorOpen },
-  { id: "dryer" as const, label: "智能家电", detail: "OpenDevice", icon: HousePlug },
+  { id: "gate" as const, label: "OpenGate", detail: "门禁", icon: DoorOpen },
+  { id: "dryer" as const, label: "OpenDevice", detail: "智能家电", icon: HousePlug },
 ];
 
 export function AppShell({ feature }: { feature: Feature }) {

@@ -16,18 +16,6 @@ async function request<T>(url: string, init?: RequestInit): Promise<ApiResult<T>
   return payload;
 }
 
-function GateLogo() {
-  return (
-    <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-[#d97757] text-[#fffaf5]">
-      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M5 20V4.5h10V20M3.5 20.5h17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M9 7.1 18.5 5v15L9 17.5V7.1Z" fill="white" fillOpacity=".96" stroke="white" strokeWidth="1.4" strokeLinejoin="round" />
-        <circle cx="15.6" cy="12.8" r=".8" fill="#5b3328" />
-      </svg>
-    </span>
-  );
-}
-
 export function DoorApp() {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -205,11 +193,6 @@ export function DoorApp() {
       {toast && <div role="status" className={`fixed left-1/2 top-5 z-50 flex max-w-[calc(100%-32px)] -translate-x-1/2 items-center gap-2 rounded-[12px] border px-4 py-2.5 text-sm font-medium shadow-[0_10px_30px_rgba(45,45,42,.08)] ${toast.kind === "error" ? "border-[#e7b8aa] bg-[#fff8f5] text-[#9b4d38]" : toast.kind === "success" ? "border-[#dfc5b9] bg-[#fffaf7] text-[#7d4938]" : "border-[#dedbd3] bg-white text-[#4f4e48]"}`}>{toast.text}</div>}
 
       <section className="mx-auto w-full max-w-[520px]">
-        <header className="mb-9 flex items-center justify-between px-1">
-          <div className="flex items-center gap-3"><GateLogo /><div><h1 className="text-[19px] font-semibold leading-none tracking-[-.02em]">OpenGate</h1><span className="mt-1.5 block text-[10px] tracking-[.08em] text-[#85827a]">简单开门</span></div></div>
-          {loggedIn && !showLogin && <button onClick={loadDoors} disabled={busy !== null} aria-label="刷新门禁" className="grid h-10 w-10 place-items-center rounded-[10px] border border-[#dedbd3] bg-[#fbfaf7] text-[#65625b] transition hover:bg-white disabled:opacity-40"><RefreshCw size={17} className={busy === "doors" ? "animate-spin" : ""} /></button>}
-        </header>
-
         {!initialized ? <div className="grid h-64 place-items-center"><LoaderCircle className="animate-spin text-[#526277]" size={26} /></div> : !loggedIn || showLogin ? (
           <form onSubmit={(event) => event.preventDefault()} className="rounded-[18px] border border-[#dedbd3] bg-[#fbfaf7] p-6 sm:p-8">
             <div className="mb-8"><div className="mb-5 grid h-10 w-10 place-items-center rounded-[10px] bg-[#f0ebe5] text-[#9a5a45]"><Smartphone size={19} /></div><h2 className="font-display text-[30px] font-medium tracking-[-.035em] text-[#2d2d2a]">{loggedIn ? "添加账号" : "登录"}</h2><p className="mt-2 text-sm text-[#77736b]">{loggedIn ? "连接另一个门禁账号" : "使用短信验证码登录"}</p></div>
@@ -225,6 +208,7 @@ export function DoorApp() {
             <section className="flex items-center gap-2 overflow-x-auto rounded-[14px] border border-[#dedbd3] bg-[#fbfaf7] p-2.5">
               {accounts.map((account) => <div key={account.id} className="flex shrink-0 items-center gap-2 rounded-[10px] bg-[#eeeae3] py-2 pl-3 pr-1.5"><span className="max-w-36 truncate text-sm font-medium">{account.username}</span><button onClick={() => setLogoutTarget(account)} disabled={busy !== null} aria-label={`退出 ${account.username}`} className="grid h-7 w-7 place-items-center rounded-[8px] text-[#a65d48] disabled:opacity-40"><LogOut size={14} /></button></div>)}
               <button onClick={() => setShowLogin(true)} aria-label="添加账号" className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-[#d97757] text-white"><Plus size={18} /></button>
+              <button onClick={loadDoors} disabled={busy !== null} aria-label="刷新门禁" className="ml-auto grid h-10 w-10 shrink-0 place-items-center rounded-[10px] text-[#65625b] disabled:opacity-40"><RefreshCw size={17} className={busy === "doors" ? "animate-spin" : ""} /></button>
             </section>
 
             <div><div className="mb-3 flex items-end justify-between px-1"><h2 className="font-display text-[28px] font-medium tracking-[-.04em]">{manageDoors ? "选择常用门禁" : "常用门禁"}</h2><button onClick={() => setManageDoors((value) => !value)} aria-label={manageDoors ? "完成选择" : `选择常用门禁，已选 ${selectedDoorCount}/${doors.length}`} className="mb-0.5 flex h-9 items-center gap-1.5 rounded-[9px] border border-[#dedbd3] bg-[#fbfaf7] px-3.5 text-sm font-medium text-[#65625b]">{manageDoors ? "完成" : <><List size={15} /><span className="tabular-nums text-[#9a968d]">{selectedDoorCount}/{doors.length}</span></>}</button></div>
