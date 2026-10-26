@@ -1,4 +1,5 @@
 import { createHmac, randomBytes } from "node:crypto";
+import { DRYER_PROGRAM_IDS, DRYER_PROGRAMS } from "./dryer-programs.ts";
 
 export type OpenDeviceSession = { uid: string; accessToken: string; deviceId: string; displayName?: string };
 function required(name: string) { const value = process.env[name]?.trim(); if (!value) throw new Error(`OpenDevice provider configuration is incomplete (${name})`); return value; }
@@ -37,11 +38,11 @@ export class OpenDeviceProvider {
     const mapping = await this.request("/v2/appliance/thing/template/mapping", { data: this.general({ homeGroupId: homeId, applianceCodes: [applianceCode], screenVersion: "11.7.15", protocolVersion: 0, platform: "app", needOldTemplate: 1 }) }) as Array<{ currentUiTemplateId?: number | string; currentUiJsId?: number | string }>;
     const item = Array.isArray(mapping) ? mapping[0] : undefined;
     if (!item) throw new Error("OpenDevice template mapping is unavailable");
-    const templates = await this.request("/v2/appliance/thing/template/get", { data: this.general({ uiTemplateIds: item.currentUiTemplateId ? [Number(item.currentUiTemplateId)] : null, uiJsIds: item.currentUiJsId ? [Number(item.currentUiJsId)] : null, platform: "app" }) });
-    return { mapping, templates };
+    await this.request("/v2/appliance/thing/template/get", { data: this.general({ uiTemplateIds: item.currentUiTemplateId ? [Number(item.currentUiTemplateId)] : null, uiJsIds: item.currentUiJsId ? [Number(item.currentUiJsId)] : null, platform: "app" }) });
+    return { programs: DRYER_PROGRAMS };
   }
   status(deviceId: string) { return this.thing("GET", `/v1/thing/properties/${deviceId}`); }
-  program(deviceId: string, programId: number) { if (!Number.isInteger(programId) || programId < 0 || programId > 65535) throw new Error("Unsupported dryer program"); return this.thing("PUT", `/v1/thing/properties/${deviceId}`, { "dryer.currentDryingProgramId": programId }); }
+  program(deviceId: string, programId: number) { if (!DRYER_PROGRAM_IDS.has(programId)) throw new Error("Unsupported dryer program"); return this.thing("PUT", `/v1/thing/properties/${deviceId}`, { "dryer.currentDryingProgramId": programId }); }
   power(deviceId: string, power: boolean) { return this.thing("PUT", `/v1/thing/properties/${deviceId}`, { "dryer.power": power }); }
   action(deviceId: string, action: string, data: unknown) { if (!["startDrying", "pauseDrying", "appointmentDrying", "cancelAppointmentDrying"].includes(action)) throw new Error("Unsupported dryer action"); return this.thing("POST", `/v1/thing/action/dryer/${action}/${deviceId}`, data); }
   private thing(method: string, alias: string, data?: unknown) { return this.request(alias, { method, data, query: `?requestId=${randomBytes(16).toString("hex")}&sync=true`, headers: { caller: this.appId, "call-source": "mideaApp", "call-module": "appPlugin" } }); }
