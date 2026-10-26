@@ -18,7 +18,7 @@ export class OpenDeviceProvider {
   private general(extra: Record<string, unknown> = {}) { return { src: this.appId, format: "2", stamp: stamp(), platformId: "1", deviceId: this.deviceId, reqId: randomBytes(16).toString("hex"), uid: this.uid, clientType: "1", appId: this.appId, language: "zh_CN", ...extra }; }
   private async request(alias: string, options: { method?: string; data?: unknown; query?: string; headers?: Record<string, string> } = {}) {
     const method = options.method || "POST"; const body = options.data === undefined ? "" : JSON.stringify(options.data); const nonce = String(Math.floor(Date.now() / 1000));
-    const headers: Record<string, string> = { "content-type": "application/json; charset=utf-8", secretVersion: "1", random: nonce, sign: createHmac("sha256", this.hmacKey).update(`${this.iotKey}${body}${nonce}`).digest("hex"), ...options.headers };
+    const headers: Record<string, string> = { "content-type": "application/json; charset=utf-8", version: "11.7.15", secretVersion: "1", random: nonce, sign: createHmac("sha256", this.hmacKey).update(`${this.iotKey}${body}${nonce}`).digest("hex"), ...options.headers };
     if (this.uid) headers.uid = this.uid; if (this.accessToken) headers.accessToken = this.accessToken;
     const response = await fetch(`${this.url}${alias}${options.query || ""}`, { method, headers, body: method === "GET" ? undefined : body, signal: AbortSignal.timeout(12_000) });
     const payload = await response.json().catch(() => ({ code: response.status, msg: "invalid response" })) as { code?: string | number; msg?: string; data?: unknown };
