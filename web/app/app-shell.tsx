@@ -1,5 +1,6 @@
+"use client";
+import { useEffect, useState } from "react";
 import { DoorOpen, HousePlug } from "lucide-react";
-import Link from "next/link";
 import { DoorApp } from "./door-app";
 import { DryerApp } from "./dryer-app";
 
@@ -11,6 +12,13 @@ const features = [
 ];
 
 export function AppShell({ feature }: { feature: Feature }) {
+  const [activeFeature, setActiveFeature] = useState(feature);
+  useEffect(() => {
+    const sync = () => setActiveFeature(new URL(window.location.href).searchParams.get("feature") === "dryer" ? "dryer" : "gate");
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+  function selectFeature(next: Feature) { setActiveFeature(next); window.history.pushState(null, "", next === "dryer" ? "/?feature=dryer" : "/"); }
 
   return (
     <div className="min-h-screen bg-[#f7f6f2] text-[#2d2d2a]">
@@ -19,12 +27,13 @@ export function AppShell({ feature }: { feature: Feature }) {
         <div className="mx-auto flex w-full max-w-[520px] gap-2 rounded-[14px] border border-[#dedbd3] bg-[#fbfaf7] p-1.5 shadow-[0_8px_28px_rgba(45,45,42,.04)]">
           {features.map((item) => {
             const Icon = item.icon;
-            const active = feature === item.id;
-            return <Link key={item.id} href={item.id === "gate" ? "/" : "/?feature=dryer"} scroll={false} aria-current={active ? "page" : undefined} className={`flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition ${active ? "bg-[#2f4f46] text-white shadow-sm" : "text-[#69665f] hover:bg-[#f0ede7]"}`}><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9px] ${active ? "bg-white/12" : "bg-[#ece8e0]"}`}><Icon size={18} /></span><span className="min-w-0"><strong className="block text-sm font-semibold">{item.label}</strong><span className={`block truncate text-[10px] ${active ? "text-white/65" : "text-[#9a968d]"}`}>{item.detail}</span></span></Link>;
+            const active = activeFeature === item.id;
+            return <button key={item.id} type="button" onClick={() => selectFeature(item.id)} aria-current={active ? "page" : undefined} className={`flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition ${active ? "bg-[#2f4f46] text-white shadow-sm" : "text-[#69665f] hover:bg-[#f0ede7]"}`}><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9px] ${active ? "bg-white/12" : "bg-[#ece8e0]"}`}><Icon size={18} /></span><span className="min-w-0"><strong className="block text-sm font-semibold">{item.label}</strong><span className={`block truncate text-[10px] ${active ? "text-white/65" : "text-[#9a968d]"}`}>{item.detail}</span></span></button>;
           })}
         </div>
       </nav>
-      {feature === "gate" ? <DoorApp /> : <DryerApp />}
+      <div hidden={activeFeature !== "gate"}><DoorApp /></div>
+      <div hidden={activeFeature !== "dryer"}><DryerApp /></div>
     </div>
   );
 }
