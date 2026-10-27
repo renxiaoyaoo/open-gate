@@ -139,6 +139,16 @@ export class OpenLockProvider {
     const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
     const xp2pInfo = at(payload, media.liveXp2pPath);
     if (!response.ok || String(at(payload, media.successPath)) !== media.successValue || typeof xp2pInfo !== "string" || !xp2pInfo) throw new Error("OpenLock 实时视频会话获取失败");
+    if (media.liveWake) {
+      const wake = await fetch(new URL(media.liveRoute, media.baseUrl), {
+        method: "POST",
+        headers: { "content-type": "application/json;charset=utf-8" },
+        body: JSON.stringify({ AccessToken: accessToken, Action: media.liveWake.action, ActionId: media.liveWake.actionId, DeviceName: deviceName, InputParams: media.liveWake.inputParams, ProductId: productId, RequestId: randomUUID() }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      const wakePayload = await wake.json().catch(() => ({})) as Record<string, unknown>;
+      if (!wake.ok || String(at(wakePayload, media.successPath)) !== media.successValue) throw new Error("OpenLock 实时视频设备唤醒失败");
+    }
     if (!media.liveWeb) return { productId, deviceName, xp2pInfo };
     const bridge = await fetch(media.liveWeb.route, {
       method: "POST",

@@ -9,7 +9,7 @@ const bundle = { schemaVersion: 1,
 (bundle as { lock?: unknown }).lock = {
   baseUrl: "https://lock.provider.example", identityCipher: "private-identity", client: { appVersion: "1", clientType: "test" },
   routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", temporaryPasswordCreate: "/password/create", users: "/users", thumbnail: "/media/sign" },
-  media: { baseUrl: "https://media.provider.example", route: "/events", liveRoute: "/device-data", liveAction: "device-data", liveXp2pPath: "payload.data._sys_xp2p_info.Value", liveWeb: { route: "https://bridge.example/session", authorization: "Bearer test", urlPath: "stream.url", expiryPath: "stream.expiresAt" }, successPath: "result", successValue: "ok", auth: { route: "/session", appKey: "test-app", appSecret: "test-secret", openId: "test-user", action: "session-action", signatureExclude: ["Action"], tokenPath: "payload.token", expiryPath: "payload.expires" }, eventRequest: { credential: "{accessToken}", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}" }, thumbnailRequest: { credential: "{accessToken}", action: "private-action", device: "{deviceId}", paths: "{thumbnails}" } },
+  media: { baseUrl: "https://media.provider.example", route: "/events", liveRoute: "/device-data", liveAction: "device-data", liveXp2pPath: "payload.data._sys_xp2p_info.Value", liveWake: { action: "wake-device", actionId: "wake", inputParams: "{\"data\":\"wake\"}" }, liveWeb: { route: "https://bridge.example/session", authorization: "Bearer test", urlPath: "stream.url", expiryPath: "stream.expiresAt" }, successPath: "result", successValue: "ok", auth: { route: "/session", appKey: "test-app", appSecret: "test-secret", openId: "test-user", action: "session-action", signatureExclude: ["Action"], tokenPath: "payload.token", expiryPath: "payload.expires" }, eventRequest: { credential: "{accessToken}", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}" }, thumbnailRequest: { credential: "{accessToken}", action: "private-action", device: "{deviceId}", paths: "{thumbnails}" } },
   fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaThumbnail: "thumbnail", signedThumbnails: "signed", signedThumbnailUrl: "url" },
 };
 process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify(bundle);
@@ -91,7 +91,8 @@ test("creates a browser-playable live-video session without exposing native sess
   } finally { globalThis.fetch = original; }
   assert.equal(calls[1].body?.AccessToken, "media-token");
   assert.equal(calls[1].body?.DeviceId, "product-1/device-1");
-  assert.deepEqual(calls[2].body, { productId: "product-1", deviceName: "device-1", xp2pInfo: "ephemeral-xp2p" });
+  assert.equal(calls[2].body?.Action, "wake-device");
+  assert.deepEqual(calls[3].body, { productId: "product-1", deviceName: "device-1", xp2pInfo: "ephemeral-xp2p" });
 });
 
 test("creates an eight-digit temporary password with the observed query contract", async () => {
