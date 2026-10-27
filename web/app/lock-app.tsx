@@ -13,7 +13,7 @@ type Toast = { text: string; kind: "success" | "error" | "info" };
 type View = "activity" | "security" | "captures";
 async function api<T>(operation: string, init?: RequestInit) { const response = await fetch(`/api/v1/lock/${operation}`, { ...init, headers: { "content-type": "application/json", ...init?.headers } }); const payload = await response.json() as Result<T>; if (!response.ok || !payload.ok) throw new Error(payload.message || "请求失败"); return payload.data as T; }
 function dateTime(value: string | number) { const date = typeof value === "number" ? new Date(value * 1000) : new Date(value); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }); }
-function eventName(type?: string) { const value = String(type || "").toLowerCase(); if (/stay|loiter|linger/.test(value)) return "人员逗留"; if (/human|person|body/.test(value)) return "人体侦测"; if (/doorbell|ring/.test(value)) return "门铃呼叫"; if (/tamper|alarm/.test(value)) return "门锁告警"; return "门前动态"; }
+function eventName(type?: string) { const value = String(type || "").toLowerCase(); if (/stay|loiter|linger/.test(value)) return "人员逗留"; if (/human|person|body/.test(value)) return "人体侦测"; if (/doorbell|ring/.test(value)) return "门铃呼叫"; if (/tamper|alarm/.test(value)) return "门锁告警"; return "安防事件"; }
 
 export function LockApp() {
   const [ready, setReady] = useState(false); const [loggedIn, setLoggedIn] = useState(false); const [phone, setPhone] = useState(""); const [password, setPassword] = useState("");

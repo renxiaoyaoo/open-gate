@@ -45,7 +45,7 @@ test("builds media requests from private templates and returns signed captures",
   };
   try {
     const session = { token: "session" }; const provider = new OpenLockProvider(session); const result = await provider.captures("7");
-    assert.deepEqual(result, [{ id: "first", time: 10, type: "", image: "https://images.example/a" }, { id: "second", time: 12, type: "", image: "https://images.example/b" }]);
+    assert.deepEqual(result, [{ id: "first-10-0", time: 10, type: "first", image: "https://images.example/a" }, { id: "second-12-1", time: 12, type: "second", image: "https://images.example/b" }]);
     assert.equal(provider.sessionState()?.mediaToken, "fresh-media-token");
   } finally { globalThis.fetch = original; }
   assert.equal(calls[2].body.product, "product-1");

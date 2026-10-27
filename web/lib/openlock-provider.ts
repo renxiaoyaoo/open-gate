@@ -118,7 +118,11 @@ export class OpenLockProvider {
     const signedData = await this.request("thumbnail", { method: "POST", json: expand(this.config!.media.thumbnailRequest, { ...values, thumbnails: candidates.map((item) => item.thumbnail) }) as Record<string, unknown> });
     const signedRoot = Array.isArray(signedData) ? signedData[0] : signedData;
     const signedValue = at(signedRoot, this.config!.fields.signedThumbnails); const signed = Array.isArray(signedValue) ? signedValue : [];
-    return candidates.map(({ event }, index) => ({ id: String(at(event, this.config!.fields.mediaEventId) ?? index), time: Number(at(event, this.config!.fields.mediaEventTime) ?? 0), type: String(at(event, this.config!.fields.mediaEventType || "EventType") ?? ""), image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? "") })).filter((item) => item.image.startsWith("https://"));
+    return candidates.map(({ event }, index) => {
+      const eventCode = String(at(event, this.config!.fields.mediaEventType || "EventType") ?? at(event, this.config!.fields.mediaEventId) ?? "");
+      const time = Number(at(event, this.config!.fields.mediaEventTime) ?? 0);
+      return { id: `${eventCode || "event"}-${time}-${index}`, time, type: eventCode, image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? "") };
+    }).filter((item) => item.image.startsWith("https://"));
   }
 
   private normalizeLogs(raw: unknown) {
