@@ -15,11 +15,6 @@ test/
 !/web/test/
 !/web/test/**
 android/
-!android/
-!android/**
-android/.gradle/
-android/local.properties
-android/app/build/
 ios/
 lib/
 !/web/lib/

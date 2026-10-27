@@ -10,8 +10,8 @@ export async function callOpenLock(operation: string, request: Request) {
   const raw = jar.get(COOKIE)?.value;
   const session = raw ? openSession<OpenLockSession>(raw) : undefined;
   if (operation === "login") {
-    const { password } = await request.json() as { password?: string };
-    const next = await new OpenLockProvider().passwordLogin(password || "");
+    const { phone, password } = await request.json() as { phone?: string; password?: string };
+    const next = await new OpenLockProvider().passwordLogin(phone || "", password || "");
     jar.set(COOKIE, sealSession(next), cookieOptions);
     return Response.json({ ok: true, data: { displayName: next.displayName } });
   }
@@ -33,11 +33,6 @@ export async function callOpenLock(operation: string, request: Request) {
   }
   else if (operation === "captures") {
     data = await provider.captures(lockId);
-    const refreshed = provider.sessionState();
-    if (refreshed) jar.set(COOKIE, sealSession(refreshed), cookieOptions);
-  }
-  else if (operation === "live-session") {
-    data = await provider.liveSession(lockId);
     const refreshed = provider.sessionState();
     if (refreshed) jar.set(COOKIE, sealSession(refreshed), cookieOptions);
   }
