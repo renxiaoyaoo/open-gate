@@ -5,6 +5,11 @@ OpenHome should have one client whose modules share navigation, security, and
 platform integrations. OpenGate is the access-control module inside that client,
 not a separate client product.
 
+OpenLock live video belongs in the native OpenHome app, where the provider's
+native media SDK can own playback and lifecycle. The Web module covers device
+status, capture albums, security and operation records, and temporary passwords;
+it must not add an Android runtime or video gateway to obtain live playback.
+
 ## OpenGate operating modes
 
 The same OpenGate UI supports two mutually exclusive modes per upstream account.
