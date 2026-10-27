@@ -31,9 +31,9 @@ export type ProviderBundle = {
     fields: {
       deviceId: string; deviceName: string; detail: string; wifiName: string; wifiSignal: string;
       battery: string; cameraBattery: string; batteryUpdatedAt: string; profileName: string;
-      logItems: string; logTime: string; logContent: string; temporaryPasswordCount: string;
+      logItems: string; logDate?: string; logTime: string; logContent: string; temporaryPasswordCount: string;
       mediaProductId: string; mediaDeviceName: string; mediaEvents: string;
-      mediaEventId: string; mediaEventTime: string; mediaThumbnail: string; signedThumbnails: string; signedThumbnailUrl: string;
+      mediaEventId: string; mediaEventTime: string; mediaEventType?: string; mediaThumbnail: string; signedThumbnails: string; signedThumbnailUrl: string;
     };
   };
 };

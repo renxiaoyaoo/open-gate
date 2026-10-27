@@ -95,7 +95,7 @@ export class OpenLockProvider {
     const raw = await this.request("detail", { query: { lockId } });
     const root = Array.isArray(raw) ? raw[0] : raw;
     const detail = at(root, this.config!.fields.detail);
-    const read = (field: keyof NonNullable<typeof this.config>["fields"]) => at(detail, this.config!.fields[field]);
+    const read = (field: keyof NonNullable<typeof this.config>["fields"]) => { const path = this.config!.fields[field]; return path ? at(detail, path) : undefined; };
     return { name: read("deviceName"), wifiName: read("wifiName"), wifiSignal: read("wifiSignal"), battery: read("battery"), cameraBattery: read("cameraBattery"), batteryUpdatedAt: read("batteryUpdatedAt") };
   }
 
@@ -107,7 +107,7 @@ export class OpenLockProvider {
     const accessToken = await this.mediaToken();
     const values: Record<string, unknown> = {
       productId: at(detail, this.config!.fields.mediaProductId), deviceName: at(detail, this.config!.fields.mediaDeviceName),
-      deviceId: lockId, startTime: now - 7 * 24 * 60 * 60, endTime: now, requestId: randomUUID(), thumbnails: [], accessToken,
+      deviceId: lockId, startTime: now - 3 * 24 * 60 * 60, endTime: now, requestId: randomUUID(), thumbnails: [], accessToken,
     };
     const mediaResponse = await fetch(new URL(this.config!.media.route, this.config!.media.baseUrl), { method: "POST", headers: { "content-type": "application/json;charset=utf-8" }, body: JSON.stringify(expand(this.config!.media.eventRequest, values)), signal: AbortSignal.timeout(15_000) });
     const mediaPayload = await mediaResponse.json().catch(() => ({})) as Record<string, unknown>;
@@ -118,12 +118,12 @@ export class OpenLockProvider {
     const signedData = await this.request("thumbnail", { method: "POST", json: expand(this.config!.media.thumbnailRequest, { ...values, thumbnails: candidates.map((item) => item.thumbnail) }) as Record<string, unknown> });
     const signedRoot = Array.isArray(signedData) ? signedData[0] : signedData;
     const signedValue = at(signedRoot, this.config!.fields.signedThumbnails); const signed = Array.isArray(signedValue) ? signedValue : [];
-    return candidates.map(({ event }, index) => ({ id: String(at(event, this.config!.fields.mediaEventId) ?? index), time: Number(at(event, this.config!.fields.mediaEventTime) ?? 0), image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? "") })).filter((item) => item.image.startsWith("https://"));
+    return candidates.map(({ event }, index) => ({ id: String(at(event, this.config!.fields.mediaEventId) ?? index), time: Number(at(event, this.config!.fields.mediaEventTime) ?? 0), type: String(at(event, this.config!.fields.mediaEventType || "EventType") ?? ""), image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? "") })).filter((item) => item.image.startsWith("https://"));
   }
 
   private normalizeLogs(raw: unknown) {
     const groups = Array.isArray(raw) ? raw : [];
-    return groups.flatMap((group) => { const items = at(group, this.config!.fields.logItems); return Array.isArray(items) ? items.map((item) => ({ time: String(at(item, this.config!.fields.logTime) ?? ""), content: String(at(item, this.config!.fields.logContent) ?? "") })) : []; });
+    return groups.flatMap((group) => { const items = at(group, this.config!.fields.logItems); const date = String(at(group, this.config!.fields.logDate || "logDate") ?? ""); return Array.isArray(items) ? items.map((item) => { const time = String(at(item, this.config!.fields.logTime) ?? ""); return { time: date && !time.includes(date) ? `${date} ${time}`.trim() : time, content: String(at(item, this.config!.fields.logContent) ?? "") }; }) : []; });
   }
   async securityLogs(lockId: string, type = "0") { return this.normalizeLogs(await this.request("securityLogs", { query: { lockId, pageNumber: "1", pageSize: "20", type } })); }
   async operationLogs(lockId: string) { return this.normalizeLogs(await this.request("operationLogs", { method: "POST", json: { lockId, pageNumber: "1", pageSize: "20" } })); }
