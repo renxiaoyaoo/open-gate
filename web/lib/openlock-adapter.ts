@@ -36,6 +36,11 @@ export async function callOpenLock(operation: string, request: Request) {
     const refreshed = provider.sessionState();
     if (refreshed) jar.set(COOKIE, sealSession(refreshed), cookieOptions);
   }
+  else if (operation === "live-session") {
+    data = await provider.liveSession(lockId);
+    const refreshed = provider.sessionState();
+    if (refreshed) jar.set(COOKIE, sealSession(refreshed), cookieOptions);
+  }
   else throw new Error("不支持的 OpenLock 操作");
   return Response.json({ ok: true, data });
 }

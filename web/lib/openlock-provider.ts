@@ -115,6 +115,28 @@ export class OpenLockProvider {
     return candidates.map(({ event }, index) => ({ id: String(at(event, this.config!.fields.mediaEventId) ?? index), time: Number(at(event, this.config!.fields.mediaEventTime) ?? 0), image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? "") })).filter((item) => item.image.startsWith("https://"));
   }
 
+  async liveSession(lockId: string) {
+    const media = this.config!.media;
+    if (!media.liveRoute || !media.liveAction || !media.liveXp2pPath) throw new Error("OpenLock 实时视频尚未配置");
+    const detailData = await this.request("detail", { query: { lockId } });
+    const root = Array.isArray(detailData) ? detailData[0] : detailData;
+    const detail = at(root, this.config!.fields.detail);
+    const productId = String(at(detail, this.config!.fields.mediaProductId) ?? "");
+    const deviceName = String(at(detail, this.config!.fields.mediaDeviceName) ?? "");
+    if (!productId || !deviceName) throw new Error("OpenLock 设备缺少实时视频标识");
+    const accessToken = await this.mediaToken();
+    const response = await fetch(new URL(media.liveRoute, media.baseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json;charset=utf-8" },
+      body: JSON.stringify({ AccessToken: accessToken, Action: media.liveAction, DeviceId: `${productId}/${deviceName}`, DeviceName: deviceName, ProductId: productId, RequestId: randomUUID() }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+    const xp2pInfo = at(payload, media.liveXp2pPath);
+    if (!response.ok || String(at(payload, media.successPath)) !== media.successValue || typeof xp2pInfo !== "string" || !xp2pInfo) throw new Error("OpenLock 实时视频会话获取失败");
+    return { productId, deviceName, xp2pInfo };
+  }
+
   private normalizeLogs(raw: unknown) {
     const groups = Array.isArray(raw) ? raw : [];
     return groups.flatMap((group) => { const items = at(group, this.config!.fields.logItems); return Array.isArray(items) ? items.map((item) => ({ time: String(at(item, this.config!.fields.logTime) ?? ""), content: String(at(item, this.config!.fields.logContent) ?? "") })) : []; });
