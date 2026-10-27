@@ -50,14 +50,16 @@ test("builds media requests from private templates and returns signed captures",
   } finally { globalThis.fetch = original; }
   assert.equal(calls[2].body.product, "product-1");
   assert.equal(calls[2].body.credential, "fresh-media-token");
+  assert.ok(Number(calls[2].body.from) <= Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60 + 2);
   assert.equal(calls[3].body.device, "7");
   assert.equal(calls[3].body.credential, "fresh-media-token");
   assert.deepEqual(calls[3].body.paths, ["a", "b"]);
 });
 
 test("normalizes device status, records, and temporary password capacity", async () => {
-  const original = globalThis.fetch;
+  const original = globalThis.fetch; const requested: string[] = [];
   globalThis.fetch = async (input) => {
+    requested.push(String(input));
     const path = new URL(String(input)).pathname;
     const data = path === "/devices" ? [{ id: "7", name: "Front" }]
       : path === "/detail" ? [{ status: { name: "Front", wifi: "Home", signal: "good", battery: "80", cameraBattery: "70", updated: "today" } }]
@@ -70,6 +72,7 @@ test("normalizes device status, records, and temporary password capacity", async
     assert.deepEqual(await provider.devices(), [{ id: "7", name: "Front" }]);
     assert.deepEqual(await provider.detail("7"), { name: "Front", wifiName: "Home", wifiSignal: "good", battery: "80", cameraBattery: "70", batteryUpdatedAt: "today" });
     assert.deepEqual(await provider.securityLogs("7"), [{ time: "now", content: "opened" }]);
+    assert.equal(new URL(requested.at(-1)!).searchParams.has("type"), false);
     assert.deepEqual(await provider.temporaryPasswordCount("7"), { remaining: 4 });
   } finally { globalThis.fetch = original; }
 });

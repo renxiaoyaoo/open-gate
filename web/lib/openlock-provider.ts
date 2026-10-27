@@ -115,7 +115,7 @@ export class OpenLockProvider {
     const accessToken = await this.mediaToken();
     const values: Record<string, unknown> = {
       productId: at(detail, this.config!.fields.mediaProductId), deviceName: at(detail, this.config!.fields.mediaDeviceName),
-      deviceId: lockId, startTime: now - 3 * 24 * 60 * 60, endTime: now, requestId: randomUUID(), thumbnails: [], accessToken,
+      deviceId: lockId, startTime: now - 7 * 24 * 60 * 60, endTime: now, requestId: randomUUID(), thumbnails: [], accessToken,
     };
     const mediaResponse = await fetch(new URL(this.config!.media.route, this.config!.media.baseUrl), { method: "POST", headers: { "content-type": "application/json;charset=utf-8" }, body: JSON.stringify(expand(this.config!.media.eventRequest, values)), signal: AbortSignal.timeout(15_000) });
     const mediaPayload = await mediaResponse.json().catch(() => ({})) as Record<string, unknown>;
@@ -137,7 +137,7 @@ export class OpenLockProvider {
     const groups = Array.isArray(raw) ? raw : [];
     return groups.flatMap((group) => { const items = at(group, this.config!.fields.logItems); const date = String(at(group, this.config!.fields.logDate || "logDate") ?? ""); return Array.isArray(items) ? items.map((item) => { const time = String(at(item, this.config!.fields.logTime) ?? ""); return { time: date && !time.includes(date) ? `${date} ${time}`.trim() : time, content: String(at(item, this.config!.fields.logContent) ?? "") }; }) : []; });
   }
-  async securityLogs(lockId: string, type = "0") { return this.normalizeLogs(await this.request("securityLogs", { query: { lockId, pageNumber: "1", pageSize: "20", type } })); }
+  async securityLogs(lockId: string) { return this.normalizeLogs(await this.request("securityLogs", { query: { lockId, pageNumber: "1", pageSize: "20" } })); }
   async operationLogs(lockId: string) { return this.normalizeLogs(await this.request("operationLogs", { method: "POST", json: { lockId, pageNumber: "1", pageSize: "20" } })); }
   async temporaryPasswordCount(lockId: string) { const raw = await this.request("temporaryPasswordCount", { query: { lockId } }); const root = Array.isArray(raw) ? raw[0] : raw; return { remaining: Number(at(root, this.config!.fields.temporaryPasswordCount) ?? 0) }; }
   async createTemporaryPassword(lockId: string) {
