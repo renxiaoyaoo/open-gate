@@ -10,7 +10,7 @@ const bundle = { schemaVersion: 1,
   baseUrl: "https://lock.provider.example", identityCipher: "private-identity", client: { appVersion: "1", clientType: "test" },
   routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", users: "/users", thumbnail: "/media/sign" },
   media: { baseUrl: "https://media.provider.example", route: "/events", successPath: "result", successValue: "ok", eventRequest: { credential: "private-media-token", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}" }, thumbnailRequest: { action: "private-action", device: "{deviceId}", paths: "{thumbnails}" } },
-  fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaDeviceId: "mediaId", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaThumbnail: "thumbnail", signedThumbnails: "signed", signedThumbnailUrl: "url" },
+  fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaThumbnail: "thumbnail", signedThumbnails: "signed", signedThumbnailUrl: "url" },
 };
 process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify(bundle);
 const { OpenLockProvider } = await import("../lib/openlock-provider.ts");
@@ -47,6 +47,7 @@ test("builds media requests from private templates and returns signed captures",
     assert.deepEqual(result, [{ id: "first", time: 10, image: "https://images.example/a" }, { id: "second", time: 12, image: "https://images.example/b" }]);
   } finally { globalThis.fetch = original; }
   assert.equal(calls[1].body.product, "product-1");
+  assert.equal(calls[2].body.device, "7");
   assert.deepEqual(calls[2].body.paths, ["a", "b"]);
 });
 

@@ -71,7 +71,7 @@ export class OpenLockProvider {
     const now = Math.floor(Date.now() / 1000);
     const values: Record<string, unknown> = {
       productId: at(detail, this.config!.fields.mediaProductId), deviceName: at(detail, this.config!.fields.mediaDeviceName),
-      deviceId: at(detail, this.config!.fields.mediaDeviceId), startTime: now - 7 * 24 * 60 * 60, endTime: now, requestId: randomUUID(), thumbnails: [],
+      deviceId: lockId, startTime: now - 7 * 24 * 60 * 60, endTime: now, requestId: randomUUID(), thumbnails: [],
     };
     const mediaResponse = await fetch(new URL(this.config!.media.route, this.config!.media.baseUrl), { method: "POST", headers: { "content-type": "application/json;charset=utf-8" }, body: JSON.stringify(expand(this.config!.media.eventRequest, values)), signal: AbortSignal.timeout(15_000) });
     const mediaPayload = await mediaResponse.json().catch(() => ({})) as Record<string, unknown>;
