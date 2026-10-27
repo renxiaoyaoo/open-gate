@@ -81,7 +81,7 @@ test("creates a browser-playable live-video session without exposing native sess
     const url = String(input); const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
     calls.push({ url, body });
     if (url.includes("/detail")) return Response.json({ status: 1, success: true, data: [{ status: { product: "product-1", mediaName: "device-1" } }] });
-    if (url.includes("/device-data")) return Response.json({ result: "ok", payload: { data: { _sys_xp2p_info: { Value: "ephemeral-xp2p" } } } });
+    if (url.includes("/device-data")) return Response.json({ result: "ok", payload: JSON.stringify({ data: { _sys_xp2p_info: { Value: "ephemeral-xp2p" } } }) });
     if (url.includes("bridge.example")) return Response.json({ stream: { url: "https://stream.example/live.m3u8", expiresAt: "2030-01-01T00:00:00Z" } });
     throw new Error("unexpected request");
   };

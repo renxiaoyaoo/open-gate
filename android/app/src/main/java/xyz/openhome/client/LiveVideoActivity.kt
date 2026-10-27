@@ -13,6 +13,13 @@ import com.tencent.xnet.XP2P
 import com.tencent.xnet.XP2PCallback
 import tv.danmaku.ijk.media.player.IMediaPlayer
 import tv.danmaku.ijk.media.player.IjkMediaPlayer
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.URL
+import java.util.concurrent.Executors
 
 class LiveVideoActivity : AppCompatActivity(), XP2PCallback, TextureView.SurfaceTextureListener {
     private lateinit var texture: TextureView
@@ -22,6 +29,9 @@ class LiveVideoActivity : AppCompatActivity(), XP2PCallback, TextureView.Surface
     private var productId = ""
     private var deviceName = ""
     private var xp2pInfo = ""
+    @Volatile private var delegatedStream = ""
+    private var gatewaySocket: ServerSocket? = null
+    private val gatewayExecutor = Executors.newCachedThreadPool()
     private val deviceId get() = "$productId/$deviceName"
 
     override fun onCreate(state: Bundle?) {
@@ -36,6 +46,7 @@ class LiveVideoActivity : AppCompatActivity(), XP2PCallback, TextureView.Surface
         }
         XP2P.setLogEnable(false, false)
         XP2P.setCallback(this)
+        startGateway()
         showStatus("正在连接…")
         XP2P.startServiceWithXp2pInfo(deviceId, productId, deviceName, xp2pInfo)
     }
@@ -55,6 +66,7 @@ class LiveVideoActivity : AppCompatActivity(), XP2PCallback, TextureView.Surface
         val targetSurface = surface ?: return@runOnUiThread
         val prefix = XP2P.delegateHttpFlv(deviceId)
         if (prefix.isBlank()) { showStatus("视频通道建立失败"); return@runOnUiThread }
+        delegatedStream = prefix + "ipc.flv?action=live&channel=0&quality=standard"
         player?.release()
         player = IjkMediaPlayer().apply {
             setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzemaxduration", 100)
@@ -63,7 +75,7 @@ class LiveVideoActivity : AppCompatActivity(), XP2PCallback, TextureView.Surface
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", 1)
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", 1)
             setSurface(targetSurface)
-            dataSource = prefix + "ipc.flv?action=live&channel=0&quality=standard"
+            dataSource = delegatedStream
             setOnPreparedListener { status.visibility = android.view.View.GONE; it.start() }
             setOnErrorListener { _: IMediaPlayer?, _: Int, _: Int -> showStatus("视频播放失败"); true }
             prepareAsync()
@@ -83,9 +95,44 @@ class LiveVideoActivity : AppCompatActivity(), XP2PCallback, TextureView.Surface
     override fun onSurfaceTextureDestroyed(value: SurfaceTexture): Boolean { surface?.release(); surface = null; return true }
     override fun onSurfaceTextureUpdated(value: SurfaceTexture) = Unit
 
+    private fun startGateway() {
+        gatewayExecutor.execute {
+            runCatching {
+                gatewaySocket = ServerSocket(19090, 4, InetAddress.getLoopbackAddress())
+                while (!Thread.currentThread().isInterrupted) {
+                    val client = gatewaySocket?.accept() ?: break
+                    gatewayExecutor.execute {
+                        client.use { socket ->
+                            val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+                            val request = reader.readLine().orEmpty()
+                            while (!reader.readLine().isNullOrEmpty()) Unit
+                            val output = socket.getOutputStream()
+                            if (request.startsWith("GET /health ")) {
+                                val body = if (delegatedStream.isBlank()) "connecting" else "ready"
+                                output.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${body.length}\r\nConnection: close\r\n\r\n$body".toByteArray())
+                            } else if (request.startsWith("GET /live.flv ") && delegatedStream.isNotBlank()) {
+                                val upstream = URL(delegatedStream).openConnection() as HttpURLConnection
+                                upstream.connectTimeout = 5_000
+                                upstream.readTimeout = 15_000
+                                upstream.connect()
+                                output.write("HTTP/1.1 200 OK\r\nContent-Type: video/x-flv\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n".toByteArray())
+                                upstream.inputStream.use { it.copyTo(output, 64 * 1024) }
+                                upstream.disconnect()
+                            } else {
+                                val body = "stream unavailable"
+                                output.write("HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\nContent-Length: ${body.length}\r\nConnection: close\r\n\r\n$body".toByteArray())
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
         player?.stop(); player?.release(); player = null
         if (productId.isNotBlank() && deviceName.isNotBlank()) XP2P.stopService(deviceId)
+        gatewaySocket?.close(); gatewaySocket = null; gatewayExecutor.shutdownNow()
         surface?.release(); surface = null
         super.onDestroy()
     }

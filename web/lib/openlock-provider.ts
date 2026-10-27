@@ -5,7 +5,12 @@ export type OpenLockSession = { token: string; displayName?: string; mediaToken?
 type ProviderResponse = { status?: number | string; success?: boolean; msg?: string; data?: unknown };
 
 function at(value: unknown, path: string): unknown {
-  return path.split(".").filter(Boolean).reduce<unknown>((current, key) => current && typeof current === "object" ? (current as Record<string, unknown>)[key] : undefined, value);
+  return path.split(".").filter(Boolean).reduce<unknown>((current, key) => {
+    if (typeof current === "string") {
+      try { current = JSON.parse(current) as unknown; } catch { return undefined; }
+    }
+    return current && typeof current === "object" ? (current as Record<string, unknown>)[key] : undefined;
+  }, value);
 }
 function expand(value: unknown, values: Record<string, unknown>): unknown {
   if (Array.isArray(value)) return value.map((item) => expand(item, values));
@@ -117,7 +122,7 @@ export class OpenLockProvider {
 
   async liveSession(lockId: string) {
     const media = this.config!.media;
-    if (!media.liveRoute || !media.liveAction || !media.liveXp2pPath || !media.liveWeb) throw new Error("OpenLock 网页实时视频尚未配置");
+    if (!media.liveRoute || !media.liveAction || !media.liveXp2pPath) throw new Error("OpenLock 实时视频尚未配置");
     const detailData = await this.request("detail", { query: { lockId } });
     const root = Array.isArray(detailData) ? detailData[0] : detailData;
     const detail = at(root, this.config!.fields.detail);
@@ -134,6 +139,7 @@ export class OpenLockProvider {
     const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
     const xp2pInfo = at(payload, media.liveXp2pPath);
     if (!response.ok || String(at(payload, media.successPath)) !== media.successValue || typeof xp2pInfo !== "string" || !xp2pInfo) throw new Error("OpenLock 实时视频会话获取失败");
+    if (!media.liveWeb) return { productId, deviceName, xp2pInfo };
     const bridge = await fetch(media.liveWeb.route, {
       method: "POST",
       headers: { "content-type": "application/json;charset=utf-8", ...(media.liveWeb.authorization ? { authorization: media.liveWeb.authorization } : {}) },
