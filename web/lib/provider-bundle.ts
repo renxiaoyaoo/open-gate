@@ -1,5 +1,6 @@
 type AccessRoute = "login" | "profile" | "communities" | "homeItems" | "allItems" | "sortItems" | "operate" | "sms";
 type DeviceRoute = "sms" | "login" | "homes" | "devices" | "templateMap" | "templateGet" | "properties" | "action";
+type LockRoute = "loginToken" | "login" | "devices" | "detail" | "securityLogs" | "operationLogs" | "temporaryPasswordCount" | "users";
 
 export type ProviderBundle = {
   schemaVersion: 1;
@@ -17,6 +18,17 @@ export type ProviderBundle = {
     routes: Record<DeviceRoute, string>;
     properties: { program: string; power: string };
     actions: Record<"start" | "pause" | "schedule" | "cancelSchedule", string>;
+  };
+  lock?: {
+    baseUrl: string;
+    identityCipher: string;
+    client: Record<string, string>;
+    routes: Record<LockRoute, string>;
+    fields: {
+      deviceId: string; deviceName: string; detail: string; wifiName: string; wifiSignal: string;
+      battery: string; cameraBattery: string; batteryUpdatedAt: string; profileName: string;
+      logItems: string; logTime: string; logContent: string; temporaryPasswordCount: string;
+    };
   };
 };
 
@@ -47,5 +59,11 @@ export function deviceRoute(name: DeviceRoute, values: Record<string, string> = 
   if (!route || route.includes("://")) throw new Error(`Provider route is invalid: ${name}`);
   for (const [key, value] of Object.entries(values)) route = route.replaceAll(`{${key}}`, encodeURIComponent(value));
   if (/\{[^}]+\}/.test(route)) throw new Error(`Provider route parameters are incomplete: ${name}`);
+  return route;
+}
+
+export function lockRoute(name: LockRoute) {
+  const route = providerBundle().lock?.routes[name];
+  if (!route || !route.startsWith("/") || route.includes("://")) throw new Error(`Provider route is invalid: ${name}`);
   return route;
 }

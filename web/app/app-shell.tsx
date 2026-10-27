@@ -1,22 +1,25 @@
-import { DoorOpen, HousePlug } from "lucide-react";
+import { DoorOpen, HousePlug, LockKeyhole } from "lucide-react";
 import { DoorApp } from "./door-app";
 import { DryerApp } from "./dryer-app";
+import { LockApp } from "./lock-app";
 
-type Feature = "gate" | "dryer";
+type Feature = "gate" | "dryer" | "lock";
 
 const features = [
   { id: "gate" as const, label: "OpenGate", detail: "门禁", icon: DoorOpen },
   { id: "dryer" as const, label: "OpenDevice", detail: "智能家电", icon: HousePlug },
+  { id: "lock" as const, label: "OpenLock", detail: "智能门锁", icon: LockKeyhole },
 ];
 
 export function AppShell({ feature }: { feature: Feature }) {
   return (
     <div data-default={feature} className="openhome-shell min-h-screen bg-[#f7f6f2] text-[#2d2d2a]">
-      <style>{`.openhome-shell .feature-panel{display:none}.openhome-shell[data-default=gate] .gate-panel,.openhome-shell[data-default=dryer] .dryer-panel{display:block}.openhome-shell:has(.feature-target:target) .feature-panel{display:none}.openhome-shell:has(#feature-gate-target:target) .gate-panel,.openhome-shell:has(#feature-dryer-target:target) .dryer-panel{display:block}.feature-tab.active{background:#2f4f46;color:white;box-shadow:0 1px 2px rgb(0 0 0/.08)}.openhome-shell:has(.feature-target:target) .feature-tab{background:transparent;color:#69665f;box-shadow:none}.openhome-shell:has(.feature-target:target) .feature-icon{background:#ece8e0}.openhome-shell:has(.feature-target:target) .feature-detail{color:#9a968d}.openhome-shell:has(#feature-gate-target:target) .gate-tab,.openhome-shell:has(#feature-dryer-target:target) .dryer-tab{background:#2f4f46;color:white;box-shadow:0 1px 2px rgb(0 0 0/.08)}.feature-tab.active .feature-icon,.openhome-shell:has(#feature-gate-target:target) .gate-tab .feature-icon,.openhome-shell:has(#feature-dryer-target:target) .dryer-tab .feature-icon{background:rgb(255 255 255/.12)}.feature-tab.active .feature-detail,.openhome-shell:has(#feature-gate-target:target) .gate-tab .feature-detail,.openhome-shell:has(#feature-dryer-target:target) .dryer-tab .feature-detail{color:rgb(255 255 255/.65)}`}</style>
+      <style>{`.openhome-shell .feature-panel{display:none}.openhome-shell[data-default=gate] .gate-panel,.openhome-shell[data-default=dryer] .dryer-panel,.openhome-shell[data-default=lock] .lock-panel{display:block}.openhome-shell:has(.feature-target:target) .feature-panel{display:none}.openhome-shell:has(#feature-gate-target:target) .gate-panel,.openhome-shell:has(#feature-dryer-target:target) .dryer-panel,.openhome-shell:has(#feature-lock-target:target) .lock-panel{display:block}.feature-tab.active{background:#2f4f46;color:white;box-shadow:0 1px 2px rgb(0 0 0/.08)}.openhome-shell:has(.feature-target:target) .feature-tab{background:transparent;color:#69665f;box-shadow:none}.openhome-shell:has(.feature-target:target) .feature-icon{background:#ece8e0}.openhome-shell:has(.feature-target:target) .feature-detail{color:#9a968d}.openhome-shell:has(#feature-gate-target:target) .gate-tab,.openhome-shell:has(#feature-dryer-target:target) .dryer-tab,.openhome-shell:has(#feature-lock-target:target) .lock-tab{background:#2f4f46;color:white;box-shadow:0 1px 2px rgb(0 0 0/.08)}.feature-tab.active .feature-icon,.openhome-shell:has(#feature-gate-target:target) .gate-tab .feature-icon,.openhome-shell:has(#feature-dryer-target:target) .dryer-tab .feature-icon,.openhome-shell:has(#feature-lock-target:target) .lock-tab .feature-icon{background:rgb(255 255 255/.12)}.feature-tab.active .feature-detail,.openhome-shell:has(#feature-gate-target:target) .gate-tab .feature-detail,.openhome-shell:has(#feature-dryer-target:target) .dryer-tab .feature-detail,.openhome-shell:has(#feature-lock-target:target) .lock-tab .feature-detail{color:rgb(255 255 255/.65)}`}</style>
       <span id="feature-gate-target" className="feature-target sr-only" />
       <span id="feature-dryer-target" className="feature-target sr-only" />
+      <span id="feature-lock-target" className="feature-target sr-only" />
       <nav aria-label="功能切换" className="sticky top-0 z-30 border-b border-[#dedbd3]/90 bg-[#f7f6f2]/95 px-4 py-3 backdrop-blur">
-        <div className="mx-auto mb-3 flex w-full max-w-[520px] items-end justify-between px-1"><div><strong className="font-display text-[22px] font-medium tracking-[-.03em]">OpenHome</strong><span className="ml-2 text-[10px] tracking-[.08em] text-[#969188]">家庭控制中枢</span></div><span className="text-[10px] text-[#aaa59c]">2 个功能</span></div>
+        <div className="mx-auto mb-3 flex w-full max-w-[520px] items-end justify-between px-1"><div><strong className="font-display text-[22px] font-medium tracking-[-.03em]">OpenHome</strong><span className="ml-2 text-[10px] tracking-[.08em] text-[#969188]">家庭控制中枢</span></div><span className="text-[10px] text-[#aaa59c]">3 个功能</span></div>
         <div className="mx-auto flex w-full max-w-[520px] gap-2 rounded-[14px] border border-[#dedbd3] bg-[#fbfaf7] p-1.5 shadow-[0_8px_28px_rgba(45,45,42,.04)]">
           {features.map((item) => {
             const Icon = item.icon;
@@ -27,6 +30,7 @@ export function AppShell({ feature }: { feature: Feature }) {
       </nav>
       <div className="feature-panel gate-panel"><DoorApp /></div>
       <div className="feature-panel dryer-panel"><DryerApp /></div>
+      <div className="feature-panel lock-panel"><LockApp /></div>
     </div>
   );
 }
