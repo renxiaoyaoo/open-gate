@@ -1,6 +1,6 @@
 type AccessRoute = "login" | "profile" | "communities" | "homeItems" | "allItems" | "sortItems" | "operate" | "sms";
 type DeviceRoute = "sms" | "login" | "homes" | "devices" | "templateMap" | "templateGet" | "properties" | "action";
-type LockRoute = "loginToken" | "login" | "devices" | "detail" | "securityLogs" | "operationLogs" | "temporaryPasswordCount" | "users" | "thumbnail";
+type LockRoute = "loginToken" | "login" | "devices" | "detail" | "securityLogs" | "operationLogs" | "temporaryPasswordCount" | "temporaryPasswordCreate" | "users" | "thumbnail";
 
 export type ProviderBundle = {
   schemaVersion: 1;

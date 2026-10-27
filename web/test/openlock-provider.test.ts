@@ -8,7 +8,7 @@ const bundle = { schemaVersion: 1,
 } as Record<string, unknown>;
 (bundle as { lock?: unknown }).lock = {
   baseUrl: "https://lock.provider.example", identityCipher: "private-identity", client: { appVersion: "1", clientType: "test" },
-  routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", users: "/users", thumbnail: "/media/sign" },
+  routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", temporaryPasswordCreate: "/password/create", users: "/users", thumbnail: "/media/sign" },
   media: { baseUrl: "https://media.provider.example", route: "/events", successPath: "result", successValue: "ok", eventRequest: { credential: "private-media-token", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}" }, thumbnailRequest: { action: "private-action", device: "{deviceId}", paths: "{thumbnails}" } },
   fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaThumbnail: "thumbnail", signedThumbnails: "signed", signedThumbnailUrl: "url" },
 };
@@ -68,4 +68,14 @@ test("normalizes device status, records, and temporary password capacity", async
     assert.deepEqual(await provider.securityLogs("7"), [{ time: "now", content: "opened" }]);
     assert.deepEqual(await provider.temporaryPasswordCount("7"), { remaining: 4 });
   } finally { globalThis.fetch = original; }
+});
+
+test("creates a six-digit temporary password with the observed query contract", async () => {
+  const original = globalThis.fetch; let requested = "";
+  globalThis.fetch = async (input) => { requested = String(input); return Response.json({ success: true, code: "123456" }); };
+  try {
+    const before = Date.now(); const result = await new OpenLockProvider({ token: "session" }).createTemporaryPassword("7");
+    assert.equal(result.password, "123456"); assert.ok(Date.parse(result.expiresAt) >= before + 30 * 60 * 1000);
+  } finally { globalThis.fetch = original; }
+  const url = new URL(requested); assert.equal(url.searchParams.get("lockId"), "7"); assert.equal(url.searchParams.get("passwordEncrypt"), "true");
 });

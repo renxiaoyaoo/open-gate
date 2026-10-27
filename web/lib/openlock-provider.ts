@@ -92,5 +92,14 @@ export class OpenLockProvider {
   async securityLogs(lockId: string, type = "0") { return this.normalizeLogs(await this.request("securityLogs", { query: { lockId, pageNumber: "1", pageSize: "20", type } })); }
   async operationLogs(lockId: string) { return this.normalizeLogs(await this.request("operationLogs", { method: "POST", json: { lockId, pageNumber: "1", pageSize: "20" } })); }
   async temporaryPasswordCount(lockId: string) { const raw = await this.request("temporaryPasswordCount", { query: { lockId } }); const root = Array.isArray(raw) ? raw[0] : raw; return { remaining: Number(at(root, this.config!.fields.temporaryPasswordCount) ?? 0) }; }
+  async createTemporaryPassword(lockId: string) {
+    const url = new URL(lockRoute("temporaryPasswordCreate"), this.config!.baseUrl);
+    url.searchParams.set("lockId", lockId); url.searchParams.set("passwordEncrypt", "true");
+    const response = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(12_000) });
+    const payload = await response.json().catch(() => ({})) as { code?: unknown; success?: boolean; message?: string };
+    const password = typeof payload.code === "string" && /^\d{6}$/.test(payload.code) ? payload.code : "";
+    if (!response.ok || payload.success !== true || !password) throw new Error(`OpenLock provider: ${payload.message || "temporary password failed"}`);
+    return { password, expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString() };
+  }
   users(lockId: string) { return this.request("users", { query: { lockId } }); }
 }
