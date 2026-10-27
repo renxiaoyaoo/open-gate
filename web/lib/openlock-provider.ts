@@ -117,7 +117,7 @@ export class OpenLockProvider {
 
   async liveSession(lockId: string) {
     const media = this.config!.media;
-    if (!media.liveRoute || !media.liveAction || !media.liveXp2pPath) throw new Error("OpenLock 实时视频尚未配置");
+    if (!media.liveRoute || !media.liveAction || !media.liveXp2pPath || !media.liveWeb) throw new Error("OpenLock 网页实时视频尚未配置");
     const detailData = await this.request("detail", { query: { lockId } });
     const root = Array.isArray(detailData) ? detailData[0] : detailData;
     const detail = at(root, this.config!.fields.detail);
@@ -134,7 +134,17 @@ export class OpenLockProvider {
     const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
     const xp2pInfo = at(payload, media.liveXp2pPath);
     if (!response.ok || String(at(payload, media.successPath)) !== media.successValue || typeof xp2pInfo !== "string" || !xp2pInfo) throw new Error("OpenLock 实时视频会话获取失败");
-    return { productId, deviceName, xp2pInfo };
+    const bridge = await fetch(media.liveWeb.route, {
+      method: "POST",
+      headers: { "content-type": "application/json;charset=utf-8", ...(media.liveWeb.authorization ? { authorization: media.liveWeb.authorization } : {}) },
+      body: JSON.stringify({ productId, deviceName, xp2pInfo }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const bridgePayload = await bridge.json().catch(() => ({})) as Record<string, unknown>;
+    const playbackUrl = at(bridgePayload, media.liveWeb.urlPath);
+    const expiresAt = media.liveWeb.expiryPath ? at(bridgePayload, media.liveWeb.expiryPath) : undefined;
+    if (!bridge.ok || typeof playbackUrl !== "string" || !/^https:\/\//.test(playbackUrl)) throw new Error("OpenLock 网页视频桥接失败");
+    return { playbackUrl, ...(typeof expiresAt === "string" ? { expiresAt } : {}) };
   }
 
   private normalizeLogs(raw: unknown) {
