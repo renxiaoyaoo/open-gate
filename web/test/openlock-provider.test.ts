@@ -70,12 +70,12 @@ test("normalizes device status, records, and temporary password capacity", async
   } finally { globalThis.fetch = original; }
 });
 
-test("creates a six-digit temporary password with the observed query contract", async () => {
+test("creates an eight-digit temporary password with the observed query contract", async () => {
   const original = globalThis.fetch; let requested = "";
-  globalThis.fetch = async (input) => { requested = String(input); return Response.json({ success: true, code: "123456" }); };
+  globalThis.fetch = async (input) => { requested = String(input); return Response.json({ success: true, data: [{ password: "12345678", expiredSecond: 900 }] }); };
   try {
     const before = Date.now(); const result = await new OpenLockProvider({ token: "session" }).createTemporaryPassword("7");
-    assert.equal(result.password, "123456"); assert.ok(Date.parse(result.expiresAt) >= before + 30 * 60 * 1000);
+    assert.equal(result.password, "12345678"); assert.ok(Date.parse(result.expiresAt) >= before + 15 * 60 * 1000);
   } finally { globalThis.fetch = original; }
-  const url = new URL(requested); assert.equal(url.searchParams.get("lockId"), "7"); assert.equal(url.searchParams.get("passwordEncrypt"), "true");
+  const url = new URL(requested); assert.equal(url.searchParams.get("lockId"), "7"); assert.equal(url.searchParams.get("passwordEncrypt"), "false");
 });
