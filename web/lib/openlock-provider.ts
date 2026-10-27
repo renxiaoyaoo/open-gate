@@ -7,6 +7,12 @@ type ProviderResponse = { status?: number | string; success?: boolean; msg?: str
 function at(value: unknown, path: string): unknown {
   return path.split(".").filter(Boolean).reduce<unknown>((current, key) => current && typeof current === "object" ? (current as Record<string, unknown>)[key] : undefined, value);
 }
+function expand(value: unknown, values: Record<string, unknown>): unknown {
+  if (Array.isArray(value)) return value.map((item) => expand(item, values));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, expand(item, values)]));
+  if (typeof value === "string" && /^\{[^}]+\}$/.test(value)) return values[value.slice(1, -1)] ?? value;
+  return value;
+}
 
 export class OpenLockProvider {
   private readonly config = providerBundle().lock;
@@ -20,7 +26,7 @@ export class OpenLockProvider {
     return { ...this.config!.client, token, requestId: randomUUID() };
   }
 
-  private async request(route: Parameters<typeof lockRoute>[0], options: { method?: string; query?: Record<string, string>; form?: Record<string, string>; json?: Record<string, string>; token?: string } = {}) {
+  private async request(route: Parameters<typeof lockRoute>[0], options: { method?: string; query?: Record<string, string>; form?: Record<string, string>; json?: Record<string, unknown>; token?: string } = {}) {
     const url = new URL(lockRoute(route), this.config!.baseUrl);
     for (const [key, value] of Object.entries(options.query || {})) url.searchParams.set(key, value);
     const body = options.form ? new URLSearchParams(options.form) : options.json ? JSON.stringify(options.json) : undefined;
@@ -56,6 +62,27 @@ export class OpenLockProvider {
     const detail = at(root, this.config!.fields.detail);
     const read = (field: keyof NonNullable<typeof this.config>["fields"]) => at(detail, this.config!.fields[field]);
     return { name: read("deviceName"), wifiName: read("wifiName"), wifiSignal: read("wifiSignal"), battery: read("battery"), cameraBattery: read("cameraBattery"), batteryUpdatedAt: read("batteryUpdatedAt") };
+  }
+
+  async captures(lockId: string) {
+    const detailData = await this.request("detail", { query: { lockId } });
+    const root = Array.isArray(detailData) ? detailData[0] : detailData;
+    const detail = at(root, this.config!.fields.detail);
+    const now = Math.floor(Date.now() / 1000);
+    const values: Record<string, unknown> = {
+      productId: at(detail, this.config!.fields.mediaProductId), deviceName: at(detail, this.config!.fields.mediaDeviceName),
+      deviceId: at(detail, this.config!.fields.mediaDeviceId), startTime: now - 7 * 24 * 60 * 60, endTime: now, requestId: randomUUID(), thumbnails: [],
+    };
+    const mediaResponse = await fetch(new URL(this.config!.media.route, this.config!.media.baseUrl), { method: "POST", headers: { "content-type": "application/json;charset=utf-8" }, body: JSON.stringify(expand(this.config!.media.eventRequest, values)), signal: AbortSignal.timeout(15_000) });
+    const mediaPayload = await mediaResponse.json().catch(() => ({})) as Record<string, unknown>;
+    if (!mediaResponse.ok || String(at(mediaPayload, this.config!.media.successPath)) !== this.config!.media.successValue) throw new Error("OpenLock media event request failed");
+    const eventsValue = at(mediaPayload, this.config!.fields.mediaEvents); const events = Array.isArray(eventsValue) ? eventsValue : [];
+    const candidates = events.map((event) => ({ event, thumbnail: at(event, this.config!.fields.mediaThumbnail) })).filter((item): item is { event: unknown; thumbnail: string } => typeof item.thumbnail === "string" && Boolean(item.thumbnail));
+    if (!candidates.length) return [];
+    const signedData = await this.request("thumbnail", { method: "POST", json: expand(this.config!.media.thumbnailRequest, { ...values, thumbnails: candidates.map((item) => item.thumbnail) }) as Record<string, unknown> });
+    const signedRoot = Array.isArray(signedData) ? signedData[0] : signedData;
+    const signedValue = at(signedRoot, this.config!.fields.signedThumbnails); const signed = Array.isArray(signedValue) ? signedValue : [];
+    return candidates.map(({ event }, index) => ({ id: String(at(event, this.config!.fields.mediaEventId) ?? index), time: Number(at(event, this.config!.fields.mediaEventTime) ?? 0), image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? "") })).filter((item) => item.image.startsWith("https://"));
   }
 
   private normalizeLogs(raw: unknown) {

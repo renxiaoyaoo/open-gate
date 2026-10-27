@@ -1,6 +1,6 @@
 type AccessRoute = "login" | "profile" | "communities" | "homeItems" | "allItems" | "sortItems" | "operate" | "sms";
 type DeviceRoute = "sms" | "login" | "homes" | "devices" | "templateMap" | "templateGet" | "properties" | "action";
-type LockRoute = "loginToken" | "login" | "devices" | "detail" | "securityLogs" | "operationLogs" | "temporaryPasswordCount" | "users";
+type LockRoute = "loginToken" | "login" | "devices" | "detail" | "securityLogs" | "operationLogs" | "temporaryPasswordCount" | "users" | "thumbnail";
 
 export type ProviderBundle = {
   schemaVersion: 1;
@@ -24,10 +24,13 @@ export type ProviderBundle = {
     identityCipher: string;
     client: Record<string, string>;
     routes: Record<LockRoute, string>;
+    media: { baseUrl: string; route: string; eventRequest: Record<string, unknown>; thumbnailRequest: Record<string, unknown>; successPath: string; successValue: string };
     fields: {
       deviceId: string; deviceName: string; detail: string; wifiName: string; wifiSignal: string;
       battery: string; cameraBattery: string; batteryUpdatedAt: string; profileName: string;
       logItems: string; logTime: string; logContent: string; temporaryPasswordCount: string;
+      mediaProductId: string; mediaDeviceName: string; mediaDeviceId: string; mediaEvents: string;
+      mediaEventId: string; mediaEventTime: string; mediaThumbnail: string; signedThumbnails: string; signedThumbnailUrl: string;
     };
   };
 };

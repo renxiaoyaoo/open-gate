@@ -27,6 +27,7 @@ export async function callOpenLock(operation: string, request: Request) {
   else if (operation === "security-logs") data = await provider.securityLogs(lockId, url.searchParams.get("type") || "0");
   else if (operation === "operation-logs") data = await provider.operationLogs(lockId);
   else if (operation === "temporary-password") data = await provider.temporaryPasswordCount(lockId);
+  else if (operation === "captures") data = await provider.captures(lockId);
   else throw new Error("不支持的 OpenLock 操作");
   return Response.json({ ok: true, data });
 }

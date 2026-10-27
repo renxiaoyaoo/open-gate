@@ -8,8 +8,9 @@ const bundle = { schemaVersion: 1,
 } as Record<string, unknown>;
 (bundle as { lock?: unknown }).lock = {
   baseUrl: "https://lock.provider.example", identityCipher: "private-identity", client: { appVersion: "1", clientType: "test" },
-  routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", users: "/users" },
-  fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", temporaryPasswordCount: "remaining" },
+  routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", users: "/users", thumbnail: "/media/sign" },
+  media: { baseUrl: "https://media.provider.example", route: "/events", successPath: "result", successValue: "ok", eventRequest: { credential: "private-media-token", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}" }, thumbnailRequest: { action: "private-action", device: "{deviceId}", paths: "{thumbnails}" } },
+  fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaDeviceId: "mediaId", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaThumbnail: "thumbnail", signedThumbnails: "signed", signedThumbnailUrl: "url" },
 };
 process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify(bundle);
 const { OpenLockProvider } = await import("../lib/openlock-provider.ts");
@@ -29,6 +30,24 @@ test("logs in with the configured private identity and password digest", async (
   assert.equal(form.get("loginToken"), "challenge");
   assert.equal(form.get("passWord2"), createHash("md5").update("secret").digest("hex"));
   assert.equal(form.get("encryptUserPhone"), "private-identity");
+});
+
+test("builds media requests from private templates and returns signed captures", async () => {
+  const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input); const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {};
+    calls.push({ url, body });
+    if (url.includes("/events")) return Response.json({ result: "ok", payload: { events: [{ eventId: "first", created: 10, thumbnail: "a" }, { eventId: "skip", created: 11 }, { eventId: "second", created: 12, thumbnail: "b" }] } });
+    if (url.includes("/media/sign")) return Response.json({ status: 1, success: true, data: [{ signed: [{ url: "https://images.example/a" }, { url: "https://images.example/b" }] }] });
+    return Response.json({ status: 1, success: true, data: [{ status: { product: "product-1", mediaName: "device-1", mediaId: "id-1" } }] });
+  };
+  try {
+    const result = await new OpenLockProvider({ token: "session" }).captures("7");
+    assert.deepEqual(result, [{ id: "first", time: 10, image: "https://images.example/a" }, { id: "second", time: 12, image: "https://images.example/b" }]);
+  } finally { globalThis.fetch = original; }
+  assert.equal(calls[1].body.product, "product-1");
+  assert.deepEqual(calls[2].body.paths, ["a", "b"]);
 });
 
 test("normalizes device status, records, and temporary password capacity", async () => {
