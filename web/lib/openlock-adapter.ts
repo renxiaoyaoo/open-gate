@@ -31,7 +31,11 @@ export async function callOpenLock(operation: string, request: Request) {
     if (request.method !== "POST") throw new Error("临时密码生成必须使用 POST");
     data = await provider.createTemporaryPassword(lockId);
   }
-  else if (operation === "captures") data = await provider.captures(lockId);
+  else if (operation === "captures") {
+    data = await provider.captures(lockId);
+    const refreshed = provider.sessionState();
+    if (refreshed) jar.set(COOKIE, sealSession(refreshed), cookieOptions);
+  }
   else throw new Error("不支持的 OpenLock 操作");
   return Response.json({ ok: true, data });
 }

@@ -9,7 +9,7 @@ const bundle = { schemaVersion: 1,
 (bundle as { lock?: unknown }).lock = {
   baseUrl: "https://lock.provider.example", identityCipher: "private-identity", client: { appVersion: "1", clientType: "test" },
   routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", temporaryPasswordCreate: "/password/create", users: "/users", thumbnail: "/media/sign" },
-  media: { baseUrl: "https://media.provider.example", route: "/events", successPath: "result", successValue: "ok", eventRequest: { credential: "private-media-token", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}" }, thumbnailRequest: { action: "private-action", device: "{deviceId}", paths: "{thumbnails}" } },
+  media: { baseUrl: "https://media.provider.example", route: "/events", successPath: "result", successValue: "ok", auth: { route: "/session", appKey: "test-app", appSecret: "test-secret", openId: "test-user", action: "session-action", signatureExclude: ["Action"], tokenPath: "payload.token", expiryPath: "payload.expires" }, eventRequest: { credential: "{accessToken}", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}" }, thumbnailRequest: { credential: "{accessToken}", action: "private-action", device: "{deviceId}", paths: "{thumbnails}" } },
   fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaThumbnail: "thumbnail", signedThumbnails: "signed", signedThumbnailUrl: "url" },
 };
 process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify(bundle);
@@ -20,10 +20,10 @@ test("logs in with the configured private identity and password digest", async (
   const original = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     calls.push({ url: String(input), init });
-    const data = calls.length === 1 ? ["challenge"] : [{ token: "session-token", nickname: "Home" }];
-    return Response.json({ status: 1, success: true, data });
+    if (String(input).includes("/session")) return Response.json({ payload: { token: "media-token", expires: Math.floor(Date.now() / 1000) + 3600 } });
+    const data = calls.length === 1 ? ["challenge"] : [{ token: "session-token", nickname: "Home" }]; return Response.json({ status: 1, success: true, data });
   };
-  try { assert.deepEqual(await new OpenLockProvider().passwordLogin("secret"), { token: "session-token", displayName: "Home" }); }
+  try { const session = await new OpenLockProvider().passwordLogin("secret"); assert.equal(session.token, "session-token"); assert.equal(session.displayName, "Home"); assert.equal(session.mediaToken, "media-token"); assert.ok((session.mediaExpiresAt || 0) > Date.now() / 1000); }
   finally { globalThis.fetch = original; }
   assert.equal(new URL(calls[0].url).searchParams.get("encryptUserPhone"), "private-identity");
   const form = new URLSearchParams(String(calls[1].init?.body));
@@ -38,17 +38,21 @@ test("builds media requests from private templates and returns signed captures",
   globalThis.fetch = async (input, init) => {
     const url = String(input); const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {};
     calls.push({ url, body });
+    if (url.includes("/session")) return Response.json({ payload: { token: "fresh-media-token", expires: Math.floor(Date.now() / 1000) + 3600 } });
     if (url.includes("/events")) return Response.json({ result: "ok", payload: { events: [{ eventId: "first", created: 10, thumbnail: "a" }, { eventId: "skip", created: 11 }, { eventId: "second", created: 12, thumbnail: "b" }] } });
     if (url.includes("/media/sign")) return Response.json({ status: 1, success: true, data: [{ signed: [{ url: "https://images.example/a" }, { url: "https://images.example/b" }] }] });
     return Response.json({ status: 1, success: true, data: [{ status: { product: "product-1", mediaName: "device-1", mediaId: "id-1" } }] });
   };
   try {
-    const result = await new OpenLockProvider({ token: "session" }).captures("7");
+    const session = { token: "session" }; const provider = new OpenLockProvider(session); const result = await provider.captures("7");
     assert.deepEqual(result, [{ id: "first", time: 10, image: "https://images.example/a" }, { id: "second", time: 12, image: "https://images.example/b" }]);
+    assert.equal(provider.sessionState()?.mediaToken, "fresh-media-token");
   } finally { globalThis.fetch = original; }
-  assert.equal(calls[1].body.product, "product-1");
-  assert.equal(calls[2].body.device, "7");
-  assert.deepEqual(calls[2].body.paths, ["a", "b"]);
+  assert.equal(calls[2].body.product, "product-1");
+  assert.equal(calls[2].body.credential, "fresh-media-token");
+  assert.equal(calls[3].body.device, "7");
+  assert.equal(calls[3].body.credential, "fresh-media-token");
+  assert.deepEqual(calls[3].body.paths, ["a", "b"]);
 });
 
 test("normalizes device status, records, and temporary password capacity", async () => {

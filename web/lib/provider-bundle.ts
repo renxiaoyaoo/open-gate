@@ -24,7 +24,10 @@ export type ProviderBundle = {
     identityCipher: string;
     client: Record<string, string>;
     routes: Record<LockRoute, string>;
-    media: { baseUrl: string; route: string; eventRequest: Record<string, unknown>; thumbnailRequest: Record<string, unknown>; successPath: string; successValue: string };
+    media: {
+      baseUrl: string; route: string; eventRequest: Record<string, unknown>; thumbnailRequest: Record<string, unknown>; successPath: string; successValue: string;
+      auth?: { route: string; appKey: string; appSecret: string; openId: string; action: string; signatureExclude: string[]; tokenPath: string; expiryPath: string };
+    };
     fields: {
       deviceId: string; deviceName: string; detail: string; wifiName: string; wifiSignal: string;
       battery: string; cameraBattery: string; batteryUpdatedAt: string; profileName: string;

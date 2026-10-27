@@ -1,7 +1,7 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomInt, randomUUID } from "node:crypto";
 import { lockRoute, providerBundle } from "./provider-bundle.ts";
 
-export type OpenLockSession = { token: string; displayName?: string };
+export type OpenLockSession = { token: string; displayName?: string; mediaToken?: string; mediaExpiresAt?: number };
 type ProviderResponse = { status?: number | string; success?: boolean; msg?: string; data?: unknown };
 
 function at(value: unknown, path: string): unknown {
@@ -20,6 +20,32 @@ export class OpenLockProvider {
   constructor(session?: OpenLockSession) {
     this.session = session;
     if (!this.config) throw new Error("OpenLock provider is not configured");
+  }
+
+  sessionState() { return this.session; }
+
+  private async refreshMediaSession() {
+    const auth = this.config!.media.auth;
+    if (!auth) throw new Error("OpenLock media authentication is not configured");
+    const request: Record<string, string | number> = { AccessToken: "", Action: auth.action, AppKey: auth.appKey, Nonce: randomInt(1, 2_147_483_647), OpenID: auth.openId, RequestId: randomUUID(), Timestamp: Math.floor(Date.now() / 1000) };
+    const source = Object.entries(request)
+      .filter(([key, value]) => !auth.signatureExclude.includes(key) && value !== "")
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+      .map(([key, value]) => `${key.replaceAll("_", ".")}=${value}`)
+      .join("&");
+    request.Signature = createHmac("sha1", auth.appSecret).update(source).digest("base64");
+    const response = await fetch(new URL(auth.route, this.config!.media.baseUrl), { method: "POST", headers: { "content-type": "application/json;charset=utf-8" }, body: JSON.stringify(request), signal: AbortSignal.timeout(12_000) });
+    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+    const token = at(payload, auth.tokenPath); const expiry = Number(at(payload, auth.expiryPath));
+    if (!response.ok || typeof token !== "string" || !token || !Number.isFinite(expiry)) throw new Error("OpenLock media authentication failed");
+    if (!this.session) throw new Error("OpenLock session is unavailable");
+    this.session.mediaToken = token; this.session.mediaExpiresAt = expiry;
+    return token;
+  }
+
+  private async mediaToken() {
+    if (this.session?.mediaToken && (this.session.mediaExpiresAt || 0) > Math.floor(Date.now() / 1000) + 60) return this.session.mediaToken;
+    return this.refreshMediaSession();
   }
 
   private headers(token = this.session?.token || "") {
@@ -47,7 +73,10 @@ export class OpenLockProvider {
     const token = profile?.token;
     if (typeof token !== "string" || !token) throw new Error("OpenLock 登录响应无会话");
     const displayName = at(profile, this.config!.fields.profileName);
-    return { token, displayName: typeof displayName === "string" ? displayName : "OpenLock 账号" };
+    const session: OpenLockSession = { token, displayName: typeof displayName === "string" ? displayName : "OpenLock 账号" };
+    const provider = new OpenLockProvider(session);
+    if (this.config!.media.auth) await provider.refreshMediaSession();
+    return session;
   }
 
   async devices() {
@@ -69,9 +98,10 @@ export class OpenLockProvider {
     const root = Array.isArray(detailData) ? detailData[0] : detailData;
     const detail = at(root, this.config!.fields.detail);
     const now = Math.floor(Date.now() / 1000);
+    const accessToken = await this.mediaToken();
     const values: Record<string, unknown> = {
       productId: at(detail, this.config!.fields.mediaProductId), deviceName: at(detail, this.config!.fields.mediaDeviceName),
-      deviceId: lockId, startTime: now - 7 * 24 * 60 * 60, endTime: now, requestId: randomUUID(), thumbnails: [],
+      deviceId: lockId, startTime: now - 7 * 24 * 60 * 60, endTime: now, requestId: randomUUID(), thumbnails: [], accessToken,
     };
     const mediaResponse = await fetch(new URL(this.config!.media.route, this.config!.media.baseUrl), { method: "POST", headers: { "content-type": "application/json;charset=utf-8" }, body: JSON.stringify(expand(this.config!.media.eventRequest, values)), signal: AbortSignal.timeout(15_000) });
     const mediaPayload = await mediaResponse.json().catch(() => ({})) as Record<string, unknown>;
