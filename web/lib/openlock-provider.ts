@@ -12,6 +12,14 @@ function at(value: unknown, path: string): unknown {
     return current && typeof current === "object" ? (current as Record<string, unknown>)[key] : undefined;
   }, value);
 }
+function eventTime(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value > 10_000_000_000 ? Math.floor(value / 1000) : value;
+  if (typeof value !== "string" || !value.trim()) return 0;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric > 10_000_000_000 ? Math.floor(numeric / 1000) : numeric;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : Math.floor(parsed / 1000);
+}
 function expand(value: unknown, values: Record<string, unknown>): unknown {
   if (Array.isArray(value)) return value.map((item) => expand(item, values));
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, expand(item, values)]));
@@ -120,7 +128,7 @@ export class OpenLockProvider {
     const signedValue = at(signedRoot, this.config!.fields.signedThumbnails); const signed = Array.isArray(signedValue) ? signedValue : [];
     return candidates.map(({ event }, index) => {
       const eventCode = String(at(event, this.config!.fields.mediaEventType || "EventType") ?? at(event, this.config!.fields.mediaEventId) ?? "");
-      const time = Number(at(event, this.config!.fields.mediaEventTime) ?? 0);
+      const time = eventTime(at(event, this.config!.fields.mediaEventTime) ?? at(event, "EventTime") ?? at(event, "CreateTime"));
       return { id: `${eventCode || "event"}-${time}-${index}`, time, type: eventCode, image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? "") };
     }).filter((item) => item.image.startsWith("https://"));
   }

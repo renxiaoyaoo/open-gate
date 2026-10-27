@@ -39,7 +39,7 @@ test("builds media requests from private templates and returns signed captures",
     const url = String(input); const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {};
     calls.push({ url, body });
     if (url.includes("/session")) return Response.json({ payload: { token: "fresh-media-token", expires: Math.floor(Date.now() / 1000) + 3600 } });
-    if (url.includes("/events")) return Response.json({ result: "ok", payload: { events: [{ eventId: "first", created: 10, thumbnail: "a" }, { eventId: "skip", created: 11 }, { eventId: "second", created: 12, thumbnail: "b" }] } });
+    if (url.includes("/events")) return Response.json({ result: "ok", payload: { events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", thumbnail: "a" }, { eventId: "skip", created: 11 }, { eventId: "second", created: 12, thumbnail: "b" }] } });
     if (url.includes("/media/sign")) return Response.json({ status: 1, success: true, data: [{ signed: [{ url: "https://images.example/a" }, { url: "https://images.example/b" }] }] });
     return Response.json({ status: 1, success: true, data: [{ status: { product: "product-1", mediaName: "device-1", mediaId: "id-1" } }] });
   };
