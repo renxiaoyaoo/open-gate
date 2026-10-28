@@ -24,8 +24,8 @@ const crease: DryerProgramParameter = { property: "crease_resist_old", name: "�
 const time = (values: number[], defaultIndex: number): DryerProgramParameter => ({ property: "dry_time_new", name: "时间", values: values.map((value) => ({ value, label: `${value} 分钟` })), defaultIndex });
 const standard = (drynessValues = [1, 2, 3], dryDefault?: number, temperatureDefault = 0): DryerProgramParameter[] => [temperature(temperatureDefault), dryness(drynessValues, dryDefault), sanitize(), crease];
 
-// Runtime-verified from the authorized target device plug-in configuration.
-// `optional` entries are the plug-in's cycle-shop programs, not enabled by default.
+// Program IDs and durations are device-compatible. Copy and presentation metadata
+// remain reconstructed product data until individually matched to the plug-in UI.
 export const DRYER_PROGRAMS: DryerProgram[] = [
   { value: 2, name: "混合", group: "日常程序", minutes: 100, description: "可用于烘干棉质类与合成织物混纺的织物。", icon: "mixed", parameters: standard() },
   { value: 43, name: "大件烘", group: "日常程序", minutes: 150, description: "适用四件套等大件烘干。", icon: "large", parameters: [temperature(), dryness([2, 3], 0), sanitize([0, 1], ["关闭", "1档（快速除菌）"]), crease] },
@@ -34,7 +34,7 @@ export const DRYER_PROGRAMS: DryerProgram[] = [
   { value: 39, name: "空气洗", group: "日常程序", minutes: 20, description: "清新祛味，焕新衣物。", icon: "air", parameters: [time([0, 5, 10, 15, 20, 25], 3)] },
   { value: 83, name: "除菌除螨", group: "日常程序", minutes: 180, description: "对长期存放的衣物进行除菌除螨处理。", icon: "sanitize", parameters: [sanitize([1, 2, 3], ["1档（快速除菌）", "2档（日常除菌）", "3档（深度除菌）"], 1)] },
   { value: 11, name: "热风暖衣", group: "日常程序", minutes: 30, description: "对需要穿着使用的衣物加热温暖。", icon: "warm", parameters: [time([0, 10, 20, 30, 40, 50], 2)] },
-  { value: 26, name: "定时烘", group: "日常程序", minutes: 30, description: "自定义烘干时间，到时即停。", icon: "timed", parameters: [time(Array.from({ length: 18 }, (_, index) => index * 10), 2)] },
+  { value: 26, name: "定时烘", group: "DIY", minutes: 30, description: "自定义烘干时间，到时即停。", icon: "timed", parameters: [time(Array.from({ length: 18 }, (_, index) => index * 10), 2)] },
   { value: 17, name: "快烘", group: "日常程序", minutes: 30, description: "适用少量轻薄衣物快速烘干。", icon: "quick", parameters: [] },
   { value: 10, name: "冷风清新", group: "日常程序", minutes: 20, description: "使用冷风帮助衣物清新。", icon: "fresh", parameters: [time([0, 10, 20], 1)], optional: true },
   { value: 28, name: "支架烘", group: "日常程序", minutes: 20, description: "衣物置于支架上平铺烘干。", icon: "rack", parameters: [temperature(), time(Array.from({ length: 17 }, (_, index) => index * 10), 0)], optional: true },
