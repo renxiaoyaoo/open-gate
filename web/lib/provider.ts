@@ -154,7 +154,7 @@ export function isAuthenticationExpired(error: unknown) {
   const message = error instanceof UpstreamError && error.payload && typeof error.payload === "object" && !Array.isArray(error.payload)
     ? upstreamMessage(error.payload as JsonMap, error.message)
     : error instanceof Error ? error.message : String(error ?? "");
-  return /还没有登录|登录已超时|重新登录|登录失效|session.*(?:失效|过期|invalid|expired)/i.test(message);
+  return /40002|还没有登录|登录已超时|重新登录|登录失效|移动平台token校验不通过|token.*(?:不存在|失效|过期|not\s+exist|invalid|expired)|session.*(?:失效|过期|invalid|expired)/i.test(message);
 }
 // The app's global response resolver and endpoint call sites compare code to 0.
 export function isSuccess(payload: JsonMap) { return Number(payload.code) === 0; }

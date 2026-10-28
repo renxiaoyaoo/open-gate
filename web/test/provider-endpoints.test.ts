@@ -171,7 +171,10 @@ test("matches the provider app business-success rule exactly", () => {
 test("recognizes provider session expiry without classifying ordinary failures as authentication", () => {
   assert.equal(isAuthenticationExpired(new Error("您还没有登录，或者登录已超时，请重新登录！")), true);
   assert.equal(isAuthenticationExpired(new UpstreamError("request failed", { code: 1, message: "登录失效" })), true);
+  assert.equal(isAuthenticationExpired(new Error("OpenDevice provider: 40002 移动平台Token校验不通过 [user token not exist]")), true);
+  assert.equal(isAuthenticationExpired(new Error("OpenLock provider: 40002 user token not exist")), true);
   assert.equal(isAuthenticationExpired(new Error("门禁查询失败")), false);
+  assert.equal(isAuthenticationExpired(new Error("OpenLock provider: 500 request failed")), false);
 });
 
 test("round-trips only safe upstream cookie-jar entries", () => {

@@ -9,7 +9,6 @@ export async function refreshPublicDoors() {
   const results = await Promise.allSettled(accountIds.map((accountId) => centralDoors(accountId)));
   const rejected = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
   const expired = rejected.filter((result) => isAuthenticationExpired(result.reason));
-  if (accountIds.length > 0 && expired.length === accountIds.length) throw expired[0].reason;
   return { doors: await listPublicDoors(), accountCount: accountIds.length, failedAccountCount: rejected.length, expiredAccountCount: expired.length };
 }
 
