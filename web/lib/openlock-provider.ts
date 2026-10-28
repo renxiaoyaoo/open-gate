@@ -89,7 +89,7 @@ export class OpenLockProvider {
     const displayName = at(profile, this.config!.fields.profileName);
     const session: OpenLockSession = { token, displayName: typeof displayName === "string" ? displayName : "OpenLock 账号" };
     const provider = new OpenLockProvider(session);
-    if (this.config!.media.auth) await provider.refreshMediaSession();
+    if (this.config!.media.auth) await provider.refreshMediaSession().catch(() => undefined);
     return session;
   }
 

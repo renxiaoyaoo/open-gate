@@ -32,6 +32,20 @@ test("logs in with the configured private identity and password digest", async (
   assert.equal(form.get("encryptUserPhone"), "private-identity");
 });
 
+test("keeps the primary lock login when optional media authentication is unavailable", async () => {
+  const original = globalThis.fetch; let request = 0;
+  globalThis.fetch = async (input) => {
+    request += 1;
+    if (String(input).includes("/session")) return new Response("unavailable", { status: 503 });
+    return Response.json({ status: 1, success: true, data: request === 1 ? ["challenge"] : [{ token: "session-token", nickname: "Home" }] });
+  };
+  try {
+    const session = await new OpenLockProvider().passwordLogin("13800138000", "secret");
+    assert.equal(session.token, "session-token");
+    assert.equal(session.mediaToken, undefined);
+  } finally { globalThis.fetch = original; }
+});
+
 test("builds media requests from private templates and returns signed captures", async () => {
   const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
   const original = globalThis.fetch;
