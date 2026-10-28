@@ -14,7 +14,7 @@ type Toast = { text: string; kind: "success" | "error" | "info" };
 type View = "security" | "captures";
 type LogView = "lock" | "alarm" | "operation";
 async function api<T>(operation: string, init?: RequestInit) { const response = await fetch(`/api/v1/lock/${operation}`, { ...init, headers: { "content-type": "application/json", ...init?.headers } }); const payload = await response.json() as Result<T>; if (!response.ok || !payload.ok) throw Object.assign(new Error(payload.message || "请求失败"), { status: response.status }); return payload.data as T; }
-function isExpiredSession(error: unknown) { const status = (error as { status?: number })?.status; const message = error instanceof Error ? error.message : ""; return status === 401 || /未登录|重新登录|token.*(?:不存在|失效|过期)|session.*(?:expired|invalid)/i.test(message); }
+function isExpiredSession(error: unknown) { const status = (error as { status?: number })?.status; const message = error instanceof Error ? error.message : ""; return status === 401 || /未登录|重新登录|account is not signed in|token.*(?:不存在|失效|过期)|session.*(?:expired|invalid)/i.test(message); }
 function dateTime(value: string | number) { const date = typeof value === "number" ? new Date(value * 1000) : new Date(value); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }); }
 function logParts(value: string) { const date = new Date(value); if (Number.isNaN(date.getTime())) { const [day = "", time = value] = value.split(/\s+/, 2); return { day, time }; } return { day: date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit", weekday: "short" }), time: date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) }; }
 
