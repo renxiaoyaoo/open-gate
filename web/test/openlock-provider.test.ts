@@ -53,13 +53,13 @@ test("builds media requests from private templates and returns signed captures",
     const url = String(input); const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {};
     calls.push({ url, body });
     if (url.includes("/session")) return Response.json({ payload: { token: "fresh-media-token", expires: Math.floor(Date.now() / 1000) + 3600 } });
-    if (url.includes("/events")) return Response.json({ result: "ok", payload: { video: "https://videos.example/event.m3u8", events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", thumbnail: "a" }, { eventId: "skip", created: 11 }, { eventId: "second", created: 12, thumbnail: "b" }] } });
+    if (url.includes("/events")) return Response.json({ result: "ok", payload: { video: "https://videos.example/not-an-event-video.m3u8", events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", thumbnail: "a", VideoURL: "https://videos.example/first.m3u8" }, { eventId: "skip", created: 11 }, { eventId: "second", created: 12, thumbnail: "b" }] } });
     if (url.includes("/media/sign")) return Response.json({ status: 1, success: true, data: [{ signed: [{ url: "https://images.example/a" }, { url: "https://images.example/b" }] }] });
     return Response.json({ status: 1, success: true, data: [{ status: { product: "product-1", mediaName: "device-1", mediaId: "id-1" } }] });
   };
   try {
     const session = { token: "session" }; const provider = new OpenLockProvider(session); const result = await provider.captures("7");
-    assert.deepEqual(result, [{ id: "first-10-0", time: 10, type: "first", image: "https://images.example/a", video: "https://videos.example/event.m3u8" }, { id: "second-12-1", time: 12, type: "second", image: "https://images.example/b", video: "https://videos.example/event.m3u8" }]);
+    assert.deepEqual(result, [{ id: "first-10-0", time: 10, type: "first", image: "https://images.example/a", video: "https://videos.example/first.m3u8" }, { id: "second-12-1", time: 12, type: "second", image: "https://images.example/b", video: undefined }]);
     assert.equal(provider.sessionState()?.mediaToken, "fresh-media-token");
   } finally { globalThis.fetch = original; }
   assert.equal(calls[2].body.product, "product-1");

@@ -57,7 +57,7 @@ export class OpenDeviceProvider {
   configureProgram(deviceId: string, programId: number, parameters: Record<string, number>) {
     const program = DRYER_PROGRAMS.find((item) => item.value === programId);
     if (!program) throw new Error("Unsupported dryer program");
-    const allowed = new Map(program.parameters.map((parameter) => [parameter.property, new Set(parameter.values.map((option) => option.value))]));
+    const allowed = new Map((program.parameters || []).map((parameter) => [parameter.property, new Set(parameter.values.map((option) => option.value))]));
     const body: Record<string, number | boolean> = { [this.config.properties.program]: programId };
     for (const [key, value] of Object.entries(parameters)) {
       const values = allowed.get(key as keyof typeof this.config.properties.parameters);

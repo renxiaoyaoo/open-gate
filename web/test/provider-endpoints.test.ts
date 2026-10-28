@@ -43,7 +43,7 @@ test("routes configured provider APIs", () => {
   assert.equal(providerUrl("mobile", "account/login").href, "https://mobile.provider.example/api/account/login");
 });
 
-test("maps only supported dryer parameters into one property update", async () => {
+test("maps only model-verified dryer parameters into one property update", async () => {
   const originalFetch = globalThis.fetch;
   let captured: RequestInit | undefined;
   globalThis.fetch = async (_input, init) => {

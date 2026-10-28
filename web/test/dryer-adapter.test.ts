@@ -20,7 +20,10 @@ test("publishes the observed target dryer programs without duplicate ids", () =>
   const large = DRYER_PROGRAMS.find((item) => item.value === 43);
   assert.equal(large?.name, "大件烘");
   assert.equal(large?.minutes, 150);
-  assert.deepEqual(large?.parameters.map(({ property }) => property), ["temperature_level", "dry_level", "dry_temp", "crease_resist_old"]);
-  assert.equal(DRYER_PROGRAMS.find((item) => item.value === 83)?.parameters[0]?.values[2]?.value, 3);
-  assert.equal(DRYER_PROGRAMS.find((item) => item.value === 28)?.optional, true);
+  assert.equal(large?.group, "日常程序");
+  assert.equal(DRYER_PROGRAMS.find((item) => item.value === 26)?.group, "日常程序");
+  assert.deepEqual(DRYER_PROGRAMS.filter(({ group }) => group === "特定材质").map(({ name }) => name), ["羽绒服", "棉麻", "婴儿服", "衬衫", "浴巾", "羊毛护理", "内衣", "运动服", "牛仔"]);
+  assert.deepEqual(large?.parameters?.map(({ property }) => property), ["temperature_level", "dry_level", "dry_temp", "crease_resist_old"]);
+  assert.equal(DRYER_PROGRAMS.find((item) => item.value === 83)?.parameters?.[0]?.values[2]?.value, 3);
+  assert.equal(DRYER_PROGRAMS.filter((item) => item.description).length, 2);
 });
