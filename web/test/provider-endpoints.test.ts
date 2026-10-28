@@ -12,7 +12,7 @@ process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify({ schemaVersion: 1, access
   baseUrl: "https://device.provider.example", credentials: { appId: "test", appKey: "test", iotKey: "test", hmacKey: "test", deviceId: "test" },
   client: { version: "1", secretVersion: "1", platformId: "1", clientType: "1", language: "en", source: "test", module: "test" },
   routes: { sms: "/account/sms", login: "/account/login", homes: "/homes", devices: "/devices", templateMap: "/templates/map", templateGet: "/templates/get", properties: "/properties/{deviceId}", action: "/actions/{action}/{deviceId}" },
-  properties: { program: "program", power: "power", parameters: { temperature_level: "temperature", dry_level: "dryness", dry_temp: "sanitize", crease_resist_old: "crease", dry_time_new: "time" } }, actions: { start: "start", pause: "pause", schedule: "schedule", cancelSchedule: "cancel" },
+  properties: { program: "program", power: "power", parameters: { temperature_level: { property: "temperature" }, dry_level: { property: "dryness" }, dry_temp: { property: "sanitize" }, crease_resist_old: { property: "crease", type: "boolean" }, dry_time_new: { property: "time" } } }, actions: { start: "start", pause: "pause", schedule: "schedule", cancelSchedule: "cancel" },
 } });
 const { OpenDeviceProvider } = await import("../lib/opendevice-provider.ts");
 const { UpstreamError, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, encryptMobile, isAuthenticationExpired, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
@@ -34,7 +34,7 @@ test("maps only supported dryer parameters into one property update", async () =
   try {
     await new OpenDeviceProvider({ uid: "user", accessToken: "token", deviceId: "client" }).configureProgram("dryer", 43, { temperature_level: 2, dry_level: 3, dry_temp: 1, crease_resist_old: 1 });
   } finally { globalThis.fetch = originalFetch; }
-  assert.deepEqual(JSON.parse(String(captured?.body)), { program: 43, temperature: 2, dryness: 3, sanitize: 1, crease: 1 });
+  assert.deepEqual(JSON.parse(String(captured?.body)), { program: 43, temperature: 2, dryness: 3, sanitize: 1, crease: true });
   assert.throws(() => new OpenDeviceProvider().configureProgram("dryer", 43, { dry_level: 99 }));
 });
 

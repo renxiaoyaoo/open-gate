@@ -48,12 +48,12 @@ export class OpenDeviceProvider {
     const program = DRYER_PROGRAMS.find((item) => item.value === programId);
     if (!program) throw new Error("Unsupported dryer program");
     const allowed = new Map(program.parameters.map((parameter) => [parameter.property, new Set(parameter.values.map((option) => option.value))]));
-    const body: Record<string, number> = { [this.config.properties.program]: programId };
+    const body: Record<string, number | boolean> = { [this.config.properties.program]: programId };
     for (const [key, value] of Object.entries(parameters)) {
       const values = allowed.get(key as keyof typeof this.config.properties.parameters);
-      const property = this.config.properties.parameters?.[key as keyof NonNullable<typeof this.config.properties.parameters>];
-      if (!values?.has(value) || !property) throw new Error("Unsupported dryer parameter");
-      body[property] = value;
+      const mapping = this.config.properties.parameters?.[key as keyof NonNullable<typeof this.config.properties.parameters>];
+      if (!values?.has(value) || !mapping) throw new Error("Unsupported dryer parameter");
+      body[mapping.property] = mapping.type === "boolean" ? value === 1 : value;
     }
     return this.thing("PUT", deviceRoute("properties", { deviceId }), body);
   }

@@ -19,7 +19,7 @@ export type ProviderBundle = {
     properties: {
       program: string;
       power: string;
-      parameters?: Partial<Record<"temperature_level" | "dry_level" | "dry_temp" | "crease_resist_old" | "dry_time_new", string>>;
+      parameters?: Partial<Record<"temperature_level" | "dry_level" | "dry_temp" | "crease_resist_old" | "dry_time_new", { property: string; type?: "boolean" }>>;
     };
     actions: Record<"start" | "pause" | "schedule" | "cancelSchedule", string>;
   };
