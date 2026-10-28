@@ -15,9 +15,18 @@ process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify({ schemaVersion: 1, access
   properties: { program: "program", power: "power", parameters: { temperature_level: { property: "temperature" }, dry_level: { property: "dryness" }, dry_temp: { property: "sanitize" }, crease_resist_old: { property: "crease", type: "boolean" }, dry_time_new: { property: "time" } } }, actions: { start: "start", pause: "pause", schedule: "schedule", cancelSchedule: "cancel" },
 } });
 const { OpenDeviceProvider } = await import("../lib/opendevice-provider.ts");
+const { isProviderBundle } = await import("../lib/provider-bundle.ts");
 const { UpstreamError, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, encryptMobile, isAuthenticationExpired, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
 const { publicDoor } = await import("../lib/public-door.ts");
 const { personalDisplayName } = await import("../lib/account-name.ts");
+
+test("rejects incomplete provider bundles before a feature uses them", () => {
+  const valid = JSON.parse(process.env.OPENHOME_PROVIDER_BUNDLE || "null");
+  assert.equal(isProviderBundle(valid), true);
+  const incomplete = structuredClone(valid);
+  delete incomplete.device.actions.cancelSchedule;
+  assert.equal(isProviderBundle(incomplete), false);
+});
 
 test("routes configured provider APIs", () => {
   assert.equal(providerUrl("gateway", "account/sms").href, "https://gateway.provider.example/account/sms");

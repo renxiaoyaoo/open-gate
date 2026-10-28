@@ -10,14 +10,14 @@ native media SDK can own playback and lifecycle. The Web module covers device
 status, capture albums, security and operation records, and temporary passwords;
 it must not add an Android runtime or video gateway to obtain live playback.
 
-## OpenGate operating modes
+## Module operating modes
 
-The same OpenGate UI supports two mutually exclusive modes per upstream account.
+The same module UI supports two mutually exclusive modes per upstream account.
 Users choose how the account is hosted without learning two different products.
 
 ### Connect to OpenHome
 
-The client connects to a self-hosted OpenHome service and uses its OpenGate API.
+The client connects to a self-hosted OpenHome service and uses the module API.
 The upstream account signs in once on the service. iPhone, Web, Control Center,
 widgets, and shortcuts share that server-held upstream session. The client stores
 only its own per-device OpenHome credential, never the upstream credential.
@@ -29,7 +29,7 @@ layer is not yet implemented.
 
 ### Use only on this device
 
-The client talks directly to the configured access provider and stores account
+The client talks directly to the configured provider and stores account
 sessions in local secure storage. It requires no OpenHome service and offers the
 same focused, advertisement-free OpenGate experience.
 
@@ -39,8 +39,8 @@ must not be enabled in both modes at the same time.
 
 ## Shared client contract
 
-Both modes implement one interface and return the same account, access-resource,
-and operation-result models:
+Each module defines one interface for both modes and returns the same account,
+resource, and operation-result models. OpenGate starts with:
 
 ```text
 Native OpenHome client

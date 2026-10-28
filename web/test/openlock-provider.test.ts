@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 const bundle = { schemaVersion: 1,
-  access: { baseUrls: { mobile: "https://a.example", app: "https://a.example", gateway: "https://a.example" }, credentials: {}, client: {}, routes: {}, passwordModels: [] },
-  device: { baseUrl: "https://d.example", credentials: {}, client: {}, routes: {}, properties: {}, actions: {} },
+  access: { baseUrls: { mobile: "https://a.example", app: "https://a.example", gateway: "https://a.example" }, credentials: { appId: "id", appSecret: "secret", encryptionKey: "key", signingKey: "sign" }, client: { version: "1", channel: "test", vendor: "test", versionCode: "1", platform: "0" }, routes: { login: "login", profile: "profile", communities: "communities", homeItems: "home", allItems: "all", sortItems: "sort", operate: "operate", sms: "sms" }, passwordModels: [] },
+  device: { baseUrl: "https://d.example", credentials: { appId: "id", appKey: "key", iotKey: "iot", hmacKey: "hmac", deviceId: "device" }, client: { version: "1", secretVersion: "1", platformId: "1", clientType: "1", language: "en", source: "test", module: "test" }, routes: { sms: "/sms", login: "/login", homes: "/homes", devices: "/devices", templateMap: "/map", templateGet: "/get", properties: "/properties", action: "/action" }, properties: { program: "program", power: "power" }, actions: { start: "start", pause: "pause", schedule: "schedule", cancelSchedule: "cancel" } },
 } as Record<string, unknown>;
 (bundle as { lock?: unknown }).lock = {
   baseUrl: "https://lock.provider.example", identityCipher: "private-identity", client: { appVersion: "1", clientType: "test" },

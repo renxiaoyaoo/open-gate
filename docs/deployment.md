@@ -12,8 +12,20 @@ Build from `deploy/docker/Dockerfile`, mount `/app/web/data`, and pass configura
 
 The Cloudflare adapter is optional. Set `OPENHOME_CF_DATABASE_ID` and optionally `OPENHOME_CF_DATABASE_NAME`, `OPENHOME_CF_CUSTOM_DOMAIN`, and `OPENHOME_ACCESS_ENABLED=1` in the private deployment environment, configure Worker secrets, then run `npm run cf:deploy` from `web`. The generated `web/wrangler.production.jsonc` is ignored. No account ID, database UUID, custom domain, or secret belongs in this repository.
 
+For a private Web deployment, Cloudflare Zero Trust may be the access boundary
+in front of the whole site. `OPENHOME_ACCESS_ENABLED` only enables the API; it
+does not authenticate callers. A future native client must not depend on the Web
+login and requires revocable OpenHome device credentials before remote access is
+made public.
+
 To sync an ignored private environment file through a deployment host without retaining a remote plaintext copy, run `deploy/cloudflare/sync-via-ssh.sh <ssh-target> <remote-repo-root> [private-env-file]`. The remote temporary file is removed automatically after Wrangler updates the Worker secrets.
 
 `OPENHOME_SESSION_ENCRYPTION_KEY` is deployment-owned key material. Generate or rotate it with `node deploy/cloudflare/rotate-session-key.mjs .env.deploy.local --yes`, then sync the secrets. The tool uses 32 cryptographically random bytes encoded as 64 hexadecimal characters. Rotation deliberately makes existing stored sessions unreadable, so every account must log in again.
 
 Provider compatibility is installed as a schema-versioned bundle. Configure `OPENHOME_PROVIDER_BUNDLE_URL` and `OPENHOME_PROVIDER_BUNDLE_TOKEN` in the ignored private deployment environment, then run `node deploy/cloudflare/sync-secrets.mjs .env.deploy.local` from the repository root. The deployment command fetches the bundle over HTTPS and streams it directly into the Worker secret store; it does not save or print the bundle. Each deployer is responsible for an authorized compatible configuration source.
+
+Cloudflare Secrets are write-only and are not a backup. Keep the session key,
+bundle-service token, and the source values used to rebuild the provider bundle
+in encrypted private machine configuration owned by the deployer. The ignored
+deployment file may reference those inputs, but neither it nor generated bundle
+JSON belongs in Git.

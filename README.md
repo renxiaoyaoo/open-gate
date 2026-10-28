@@ -1,6 +1,6 @@
 # OpenHome
 
-OpenHome is a self-hosted home-control hub. Its shared Web and API foundation hosts focused modules: OpenGate for access control and OpenDevice for smart appliances.
+OpenHome is a self-hosted home-control hub and the foundation for one unified native client. Its shared Web and API foundation hosts focused modules.
 
 The public project is provider-neutral: upstream endpoints, credentials, signing material, deployment domains, user data, and captured artifacts are never committed.
 
@@ -8,16 +8,23 @@ The public project is provider-neutral: upstream endpoints, credentials, signing
 
 - **OpenGate**: multiple access-provider accounts, aggregated doors, remote opening, and temporary access codes
 - **OpenDevice**: authorized smart-appliance accounts and device controls; dryer status, programs, operation, and appointments are currently implemented
+- **OpenLock**: smart-lock status, capture albums, security and operation records, and temporary passwords
 
 ## Shared foundation
 
-- Shared encrypted login state across devices
+- Server-held OpenGate sessions that can be shared across clients
 - Aggregated doors without exposing account-to-door relationships
 - Opaque public identifiers and idempotent open requests
 - Large, mobile-first door controls
 - Cloudflare Workers + D1 deployment
 - Standard Node.js + local SQLite deployment
-- External authentication friendly; application authentication is intentionally pluggable
+- Compatible with an external access boundary such as Cloudflare Zero Trust
+
+The existing Web UI remains a first-class client. Future native clients use the
+same domain models and let each upstream account choose either a self-hosted
+OpenHome center or an on-device provider adapter. Center mode uses the database;
+direct mode stores its session in the device's secure storage and needs no
+OpenHome database.
 
 ## Run with Node.js
 

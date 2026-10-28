@@ -45,16 +45,33 @@ export type ProviderBundle = {
 let source = "";
 let cached: ProviderBundle | undefined;
 
+function hasStrings(value: unknown, keys: readonly string[]) {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return keys.every((key) => typeof record[key] === "string" && record[key] !== "");
+}
+
+export function isProviderBundle(value: unknown): value is ProviderBundle {
+  if (!value || typeof value !== "object") return false;
+  const bundle = value as Partial<ProviderBundle>;
+  const access = bundle.access; const device = bundle.device; const lock = bundle.lock;
+  if (bundle.schemaVersion !== 1 || !access || !device) return false;
+  if (!hasStrings(access.baseUrls, ["mobile", "app", "gateway"]) || !hasStrings(access.credentials, ["appId", "appSecret", "encryptionKey", "signingKey"]) || !hasStrings(access.client, ["version", "channel", "vendor", "versionCode", "platform"]) || !hasStrings(access.routes, ["login", "profile", "communities", "homeItems", "allItems", "sortItems", "operate", "sms"]) || !Array.isArray(access.passwordModels)) return false;
+  if (!hasStrings(device, ["baseUrl"]) || !hasStrings(device.credentials, ["appId", "appKey", "iotKey", "hmacKey", "deviceId"]) || !hasStrings(device.client, ["version", "secretVersion", "platformId", "clientType", "language", "source", "module"]) || !hasStrings(device.routes, ["sms", "login", "homes", "devices", "templateMap", "templateGet", "properties", "action"]) || !hasStrings(device.properties, ["program", "power"]) || !hasStrings(device.actions, ["start", "pause", "schedule", "cancelSchedule"])) return false;
+  if (lock && (!hasStrings(lock, ["baseUrl", "identityCipher"]) || !hasStrings(lock.routes, ["loginToken", "login", "devices", "detail", "securityLogs", "operationLogs", "temporaryPasswordCount", "temporaryPasswordCreate", "users", "thumbnail"]) || !hasStrings(lock.media, ["baseUrl", "route", "successPath", "successValue"]) || !hasStrings(lock.fields, ["deviceId", "deviceName", "detail", "wifiName", "wifiSignal", "battery", "cameraBattery", "batteryUpdatedAt", "profileName", "logItems", "logTime", "logContent", "temporaryPasswordCount", "mediaProductId", "mediaDeviceName", "mediaEvents", "mediaEventId", "mediaEventTime", "mediaThumbnail", "signedThumbnails", "signedThumbnailUrl"]))) return false;
+  return true;
+}
+
 export function providerBundle(): ProviderBundle {
   const value = process.env.OPENHOME_PROVIDER_BUNDLE?.trim() || "";
   if (!value) throw new Error("Provider bundle is not configured");
   if (value === source && cached) return cached;
   let parsed: unknown;
   try { parsed = JSON.parse(value); } catch { throw new Error("Provider bundle is invalid"); }
-  const bundle = parsed as ProviderBundle;
-  if (bundle?.schemaVersion !== 1 || !bundle.access?.baseUrls || !bundle.access?.credentials || !bundle.access?.routes || !bundle.device?.baseUrl || !bundle.device?.credentials || !bundle.device?.routes) {
+  if (!isProviderBundle(parsed)) {
     throw new Error("Provider bundle schema is unsupported");
   }
+  const bundle = parsed;
   source = value; cached = bundle; return bundle;
 }
 
