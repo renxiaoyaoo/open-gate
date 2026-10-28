@@ -42,7 +42,17 @@ export class OpenDeviceProvider {
     await this.request(deviceRoute("templateGet"), { data: this.general({ uiTemplateIds: item.currentUiTemplateId ? [Number(item.currentUiTemplateId)] : null, uiJsIds: item.currentUiJsId ? [Number(item.currentUiJsId)] : null, platform: "app" }) });
     return { programs: DRYER_PROGRAMS };
   }
-  status(deviceId: string) { return this.thing("GET", deviceRoute("properties", { deviceId })); }
+  async status(deviceId: string) {
+    const raw = await this.thing("GET", deviceRoute("properties", { deviceId }));
+    const source = raw as { properties?: Array<{ code?: string; propertyCode?: string; value: unknown }>; data?: { properties?: Array<{ code?: string; propertyCode?: string; value: unknown }> } };
+    const list = source?.properties || source?.data?.properties;
+    const values = Array.isArray(list) ? Object.fromEntries(list.map((item) => [item.code || item.propertyCode || "", item.value])) : raw as Record<string, unknown>;
+    const parameters = Object.fromEntries(Object.entries(this.config.properties.parameters || {}).map(([key, mapping]) => {
+      const value = values[mapping.property];
+      return [key, mapping.type === "boolean" ? (value === true ? 1 : 0) : value];
+    }));
+    return Array.isArray(list) ? { ...source, openHomeParameters: parameters } : { ...values, openHomeParameters: parameters };
+  }
   program(deviceId: string, programId: number) { if (!DRYER_PROGRAM_IDS.has(programId)) throw new Error("Unsupported dryer program"); return this.thing("PUT", deviceRoute("properties", { deviceId }), { [this.config.properties.program]: programId }); }
   configureProgram(deviceId: string, programId: number, parameters: Record<string, number>) {
     const program = DRYER_PROGRAMS.find((item) => item.value === programId);
