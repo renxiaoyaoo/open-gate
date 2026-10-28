@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { BatteryMedium, Camera, Copy, KeyRound, LoaderCircle, LogOut, Play, RefreshCw, ShieldCheck, Wifi, X } from "lucide-react";
 import Image from "next/image";
+import { useFeatureActivation } from "./use-feature-activation";
 
 type Result<T> = { ok: boolean; data?: T; message?: string };
 type Device = { id: string; name: string };
@@ -17,7 +18,8 @@ function isExpiredSession(error: unknown) { const status = (error as { status?: 
 function dateTime(value: string | number) { const date = typeof value === "number" ? new Date(value * 1000) : new Date(value); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }); }
 function logParts(value: string) { const date = new Date(value); if (Number.isNaN(date.getTime())) { const [day = "", time = value] = value.split(/\s+/, 2); return { day, time }; } return { day: date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit", weekday: "short" }), time: date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) }; }
 
-export function LockApp() {
+export function LockApp({ activeByDefault = false }: { activeByDefault?: boolean }) {
+  const active = useFeatureActivation("lock", activeByDefault);
   const [ready, setReady] = useState(false); const [loggedIn, setLoggedIn] = useState(false); const [phone, setPhone] = useState(""); const [password, setPassword] = useState("");
   const [profile, setProfile] = useState("OpenLock 账号"); const [devices, setDevices] = useState<Device[]>([]); const [selected, setSelected] = useState(""); const [loadError, setLoadError] = useState("");
   const [detail, setDetail] = useState<Detail>(); const [lockDynamics, setLockDynamics] = useState<Log[]>([]); const [operationLogs, setOperationLogs] = useState<Log[]>([]); const [securityLogs, setSecurityLogs] = useState<Log[]>([]); const [captures, setCaptures] = useState<Capture[]>([]); const [view, setView] = useState<View>("security"); const [logView, setLogView] = useState<LogView>("lock");
@@ -35,7 +37,7 @@ export function LockApp() {
   const initialize = useCallback(async () => { setLoadError(""); try { const account = await api<{ displayName?: string }>("profile"); setProfile(account.displayName || "OpenLock 账号"); const list = await api<Device[]>("devices"); setDevices(list); const id = list[0]?.id || ""; setSelected(id); if (id) await loadDevice(id); setLoggedIn(true); return true; } catch (error) { if (isExpiredSession(error)) { setLoggedIn(false); setDevices([]); setSelected(""); setDetail(undefined); setLockDynamics([]); setOperationLogs([]); setSecurityLogs([]); return false; } setLoggedIn(true); setLoadError(error instanceof Error ? error.message : "设备加载失败"); throw error; } }, [loadDevice]);
   // Hydrate the provider-backed session once after mount.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { initialize().catch(() => undefined).finally(() => setReady(true)); }, [initialize]);
+  useEffect(() => { if (!active || ready) return; initialize().catch(() => undefined).finally(() => setReady(true)); }, [active, initialize, ready]);
   async function login() { setBusy("login"); try { await api("login", { method: "POST", body: JSON.stringify({ phone, password }) }); if (!await initialize()) throw new Error("登录未生效，请检查账号后重试"); setPhone(""); setPassword(""); notify("登录成功", "success"); } catch (e) { notify(e instanceof Error ? e.message : "登录失败", "error"); } finally { setBusy(null); } }
   async function switchView(next: View) { setView(next); if (!selected || next !== "captures" || captures.length) return; setBusy("content"); try { setCaptures(await api<Capture[]>(`captures?lockId=${encodeURIComponent(selected)}`)); } catch (e) { notify(e instanceof Error ? e.message : "加载失败", "error"); } finally { setBusy(null); } }
   async function logout() { setBusy("logout"); try { await api("logout", { method: "POST" }); setLoggedIn(false); setDetail(undefined); setDevices([]); setConfirmLogout(false); notify("已退出", "success"); } catch (e) { notify(e instanceof Error ? e.message : "退出失败", "error"); } finally { setBusy(null); } }

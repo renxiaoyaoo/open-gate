@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Baby, BedDouble, CalendarClock, Dumbbell, Flame, LoaderCircle, LogOut, Pause, Play, Power, RefreshCw, Shirt, Smartphone, Sparkles, Timer, Waves, Wind, X } from "lucide-react";
 import { appointmentDelay, finishAt } from "@/lib/dryer-schedule";
+import { useFeatureActivation } from "./use-feature-activation";
 
 type ApiResult<T> = { ok: boolean; data?: T; message?: string };
 type Home = { homegroupId: string | number };
@@ -20,7 +21,8 @@ function statusName(value?: string, power?: boolean) { return !power ? "已关�
 function clock(value?: string) { const minutes = Math.max(0, Number(value) || 0); return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`; }
 function ProgramGlyph({ kind }: { kind: string }) { const Icon = kind === "baby" ? Baby : kind === "bedding" || kind === "large" ? BedDouble : kind === "sport" ? Dumbbell : kind === "warm" ? Flame : kind === "shirt" ? Shirt : kind === "timed" ? Timer : kind === "wool" || kind === "air" ? Waves : kind === "fresh" ? Wind : Sparkles; return <Icon size={18} />; }
 
-export function DryerApp() {
+export function DryerApp({ activeByDefault = false }: { activeByDefault?: boolean }) {
+  const active = useFeatureActivation("dryer", activeByDefault);
   const [mobile, setMobile] = useState(""); const [code, setCode] = useState(""); const [countdown, setCountdown] = useState(0);
   const [initialized, setInitialized] = useState(false); const [loggedIn, setLoggedIn] = useState(false); const [loadError, setLoadError] = useState(""); const [profile, setProfile] = useState("OpenDevice 账号");
   const [deviceId, setDeviceId] = useState(""); const [deviceName, setDeviceName] = useState("干衣机"); const [state, setState] = useState<DryerState | null>(null);
@@ -34,7 +36,7 @@ export function DryerApp() {
   const initialize = useCallback(async () => { setLoadError(""); const account = await api<{ displayName?: string }>("profile"); setProfile(account.displayName || "OpenDevice 账号"); try { const homes = await api<{ homeList?: Home[] }>("homes"); if (!await findDryer(homes.homeList || [])) throw new Error("没有找到干衣机"); setLoggedIn(true); return true; } catch (error) { if (isExpiredSession(error)) { setLoggedIn(false); setDeviceId(""); setState(null); return false; } setLoggedIn(true); setLoadError(error instanceof Error ? error.message : "设备加载失败"); return true; } }, [findDryer]);
   // Hydrate the provider-backed session once after mount.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { initialize().catch(() => setLoggedIn(false)).finally(() => setInitialized(true)); }, [initialize]);
+  useEffect(() => { if (!active || initialized) return; initialize().catch(() => setLoggedIn(false)).finally(() => setInitialized(true)); }, [active, initialize, initialized]);
   async function login(smsCode = code) { if (busy || !/^1\d{10}$/.test(mobile) || !/^\d{6}$/.test(smsCode)) return; setBusy("login"); try { await api("login", { method: "POST", body: JSON.stringify({ mobile, code: smsCode }) }); if (!await initialize()) throw new Error("登录未生效，请重新获取验证码"); setMobile(""); setCode(""); setCountdown(0); notify("登录成功", "success"); } catch (e) { notify(e instanceof Error ? e.message : "登录失败", "error"); } finally { setBusy(null); } }
   async function sendSms() { if (!/^1\d{10}$/.test(mobile)) return notify("请输入正确手机号", "error"); setBusy("sms"); try { await api("sms", { method: "POST", body: JSON.stringify({ mobile }) }); setCountdown(60); notify("验证码已发送", "success"); } catch (e) { notify(e instanceof Error ? e.message : "发送失败", "error"); } finally { setBusy(null); } }
   async function logout() { setBusy("logout"); try { await api("logout", { method: "POST" }); setLoggedIn(false); setDeviceId(""); setState(null); setConfirmLogout(false); notify("已退出", "success"); } catch (e) { notify(e instanceof Error ? e.message : "退出失败", "error"); } finally { setBusy(null); } }

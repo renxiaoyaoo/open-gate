@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Copy, KeyRound, List, LoaderCircle, LockKeyholeOpen, LogOut, Plus, RefreshCw, Smartphone, X } from "lucide-react";
+import { useFeatureActivation } from "./use-feature-activation";
 
 type Door = { id: string; name: string; communityName?: string | null; passwordSupported?: boolean; providerFeatured: boolean; selected: boolean; refreshedAt: number };
 type Account = { id: string; username: string };
@@ -16,7 +17,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<ApiResult<T>
   return payload;
 }
 
-export function DoorApp() {
+export function DoorApp({ activeByDefault = true }: { activeByDefault?: boolean }) {
+  const active = useFeatureActivation("gate", activeByDefault);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
@@ -78,6 +80,7 @@ export function DoorApp() {
   }
 
   useEffect(() => {
+    if (!active || initialized) return;
     request<Account[]>("/api/v1/accounts")
       .then((result) => {
         const next = result.data || [];
@@ -86,7 +89,7 @@ export function DoorApp() {
       })
       .catch((error) => { setShowLogin(true); notify(error instanceof Error ? error.message : "加载失败", "error"); })
       .finally(() => setInitialized(true));
-  }, [loadDoors, notify]);
+  }, [active, initialized, loadDoors, notify]);
 
   async function sendSms() {
     if (!/^1\d{10}$/.test(phone)) { notify("请输入正确的手机号", "error"); return; }

@@ -21,6 +21,6 @@ export function AppShell({ feature }: { feature: Feature }) {
         {features.map((item) => { const Icon = item.icon; const active = feature === item.id; return <a key={item.id} href={`#feature-${item.id}-target`} style={{ "--tab-color": item.color } as CSSProperties} className={`feature-tab ${item.id}-tab ${active ? "active" : ""} flex min-w-[146px] flex-1 snap-start items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[#69665f] transition hover:bg-[#f0ede7]`}><span className="feature-icon grid h-9 w-9 shrink-0 place-items-center rounded-[9px] bg-[#ece8e0]"><Icon size={18} /></span><span className="min-w-0"><strong className="block whitespace-nowrap text-sm font-semibold">{item.label}</strong><span className="feature-detail block whitespace-nowrap text-[10px] text-[#9a968d]">{item.detail}</span></span></a>; })}
       </div>
     </nav>
-    <div className="feature-panel gate-panel"><DoorApp /></div><div className="feature-panel dryer-panel"><DryerApp /></div><div className="feature-panel lock-panel"><LockApp /></div>
+    <div className="feature-panel gate-panel"><DoorApp activeByDefault={feature === "gate"} /></div><div className="feature-panel dryer-panel"><DryerApp activeByDefault={feature === "dryer"} /></div><div className="feature-panel lock-panel"><LockApp activeByDefault={feature === "lock"} /></div>
   </div>;
 }
