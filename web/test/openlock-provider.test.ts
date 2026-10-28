@@ -10,7 +10,7 @@ const bundle = { schemaVersion: 1,
   baseUrl: "https://lock.provider.example", identityCipher: "private-identity", client: { appVersion: "1", clientType: "test" },
   routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", temporaryPasswordCreate: "/password/create", users: "/users", thumbnail: "/media/sign" },
   media: { baseUrl: "https://media.provider.example", route: "/events", successPath: "result", successValue: "ok", auth: { route: "/session", appKey: "test-app", appSecret: "test-secret", openId: "test-user", action: "session-action", signatureExclude: ["Action"], tokenPath: "payload.token", expiryPath: "payload.expires" }, eventRequest: { credential: "{accessToken}", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}" }, thumbnailRequest: { credential: "{accessToken}", action: "private-action", device: "{deviceId}", paths: "{thumbnails}" } },
-  fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaThumbnail: "thumbnail", signedThumbnails: "signed", signedThumbnailUrl: "url" },
+  fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaThumbnail: "thumbnail", mediaVideo: "payload.video", signedThumbnails: "signed", signedThumbnailUrl: "url" },
 };
 process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify(bundle);
 const { OpenLockProvider } = await import("../lib/openlock-provider.ts");
@@ -53,13 +53,13 @@ test("builds media requests from private templates and returns signed captures",
     const url = String(input); const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {};
     calls.push({ url, body });
     if (url.includes("/session")) return Response.json({ payload: { token: "fresh-media-token", expires: Math.floor(Date.now() / 1000) + 3600 } });
-    if (url.includes("/events")) return Response.json({ result: "ok", payload: { events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", thumbnail: "a" }, { eventId: "skip", created: 11 }, { eventId: "second", created: 12, thumbnail: "b" }] } });
+    if (url.includes("/events")) return Response.json({ result: "ok", payload: { video: "https://videos.example/event.m3u8", events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", thumbnail: "a" }, { eventId: "skip", created: 11 }, { eventId: "second", created: 12, thumbnail: "b" }] } });
     if (url.includes("/media/sign")) return Response.json({ status: 1, success: true, data: [{ signed: [{ url: "https://images.example/a" }, { url: "https://images.example/b" }] }] });
     return Response.json({ status: 1, success: true, data: [{ status: { product: "product-1", mediaName: "device-1", mediaId: "id-1" } }] });
   };
   try {
     const session = { token: "session" }; const provider = new OpenLockProvider(session); const result = await provider.captures("7");
-    assert.deepEqual(result, [{ id: "first-10-0", time: 10, type: "first", image: "https://images.example/a" }, { id: "second-12-1", time: 12, type: "second", image: "https://images.example/b" }]);
+    assert.deepEqual(result, [{ id: "first-10-0", time: 10, type: "first", image: "https://images.example/a", video: "https://videos.example/event.m3u8" }, { id: "second-12-1", time: 12, type: "second", image: "https://images.example/b", video: "https://videos.example/event.m3u8" }]);
     assert.equal(provider.sessionState()?.mediaToken, "fresh-media-token");
   } finally { globalThis.fetch = original; }
   assert.equal(calls[2].body.product, "product-1");
@@ -85,8 +85,10 @@ test("normalizes device status, records, and temporary password capacity", async
     const provider = new OpenLockProvider({ token: "session" });
     assert.deepEqual(await provider.devices(), [{ id: "7", name: "Front" }]);
     assert.deepEqual(await provider.detail("7"), { name: "Front", wifiName: "Home", wifiSignal: "good", battery: "80", cameraBattery: "70", batteryUpdatedAt: "today" });
+    assert.deepEqual(await provider.lockDynamics("7"), [{ time: "now", content: "opened" }]);
+    assert.equal(new URL(requested.at(-1)!).searchParams.get("type"), "1");
     assert.deepEqual(await provider.securityLogs("7"), [{ time: "now", content: "opened" }]);
-    assert.equal(new URL(requested.at(-1)!).searchParams.has("type"), false);
+    assert.equal(new URL(requested.at(-1)!).searchParams.get("type"), "2");
     assert.deepEqual(await provider.temporaryPasswordCount("7"), { remaining: 4 });
   } finally { globalThis.fetch = original; }
 });

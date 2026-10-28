@@ -24,6 +24,7 @@ export async function callOpenLock(operation: string, request: Request) {
   else if (operation === "devices") data = await provider.devices();
   else if (!lockId) throw new Error("缺少设备标识");
   else if (operation === "detail") data = await provider.detail(lockId);
+  else if (operation === "lock-dynamics") data = await provider.lockDynamics(lockId);
   else if (operation === "security-logs") data = await provider.securityLogs(lockId);
   else if (operation === "operation-logs") data = await provider.operationLogs(lockId);
   else if (operation === "temporary-password") data = await provider.temporaryPasswordCount(lockId);

@@ -126,10 +126,12 @@ export class OpenLockProvider {
     const signedData = await this.request("thumbnail", { method: "POST", json: expand(this.config!.media.thumbnailRequest, { ...values, thumbnails: candidates.map((item) => item.thumbnail) }) as Record<string, unknown> });
     const signedRoot = Array.isArray(signedData) ? signedData[0] : signedData;
     const signedValue = at(signedRoot, this.config!.fields.signedThumbnails); const signed = Array.isArray(signedValue) ? signedValue : [];
+    const videoValue = at(mediaPayload, this.config!.fields.mediaVideo || "data.VideoURL");
+    const video = typeof videoValue === "string" && videoValue.startsWith("https://") ? videoValue : undefined;
     return candidates.map(({ event }, index) => {
       const eventCode = String(at(event, this.config!.fields.mediaEventType || "EventType") ?? at(event, this.config!.fields.mediaEventId) ?? "");
       const time = eventTime(at(event, this.config!.fields.mediaEventTime) ?? at(event, "EventTime") ?? at(event, "CreateTime"));
-      return { id: `${eventCode || "event"}-${time}-${index}`, time, type: eventCode, image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? "") };
+      return { id: `${eventCode || "event"}-${time}-${index}`, time, type: eventCode, image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? ""), video };
     }).filter((item) => item.image.startsWith("https://"));
   }
 
@@ -137,7 +139,8 @@ export class OpenLockProvider {
     const groups = Array.isArray(raw) ? raw : [];
     return groups.flatMap((group) => { const items = at(group, this.config!.fields.logItems); const date = String(at(group, this.config!.fields.logDate || "logDate") ?? ""); return Array.isArray(items) ? items.map((item) => { const time = String(at(item, this.config!.fields.logTime) ?? ""); return { time: date && !time.includes(date) ? `${date} ${time}`.trim() : time, content: String(at(item, this.config!.fields.logContent) ?? "") }; }) : []; });
   }
-  async securityLogs(lockId: string) { return this.normalizeLogs(await this.request("securityLogs", { query: { lockId, pageNumber: "1", pageSize: "20" } })); }
+  async lockDynamics(lockId: string) { return this.normalizeLogs(await this.request("securityLogs", { query: { lockId, pageNumber: "1", pageSize: "20", type: "1" } })); }
+  async securityLogs(lockId: string) { return this.normalizeLogs(await this.request("securityLogs", { query: { lockId, pageNumber: "1", pageSize: "20", type: "2" } })); }
   async operationLogs(lockId: string) { return this.normalizeLogs(await this.request("operationLogs", { method: "POST", json: { lockId, pageNumber: "1", pageSize: "20" } })); }
   async temporaryPasswordCount(lockId: string) { const raw = await this.request("temporaryPasswordCount", { query: { lockId } }); const root = Array.isArray(raw) ? raw[0] : raw; return { remaining: Number(at(root, this.config!.fields.temporaryPasswordCount) ?? 0) }; }
   async createTemporaryPassword(lockId: string) {
