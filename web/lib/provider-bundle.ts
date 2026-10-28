@@ -16,7 +16,11 @@ export type ProviderBundle = {
     credentials: { appId: string; appKey: string; iotKey: string; hmacKey: string; deviceId: string };
     client: { version: string; secretVersion: string; platformId: string; clientType: string; language: string; source: string; module: string };
     routes: Record<DeviceRoute, string>;
-    properties: { program: string; power: string };
+    properties: {
+      program: string;
+      power: string;
+      parameters?: Partial<Record<"temperature_level" | "dry_level" | "dry_temp" | "crease_resist_old" | "dry_time_new", string>>;
+    };
     actions: Record<"start" | "pause" | "schedule" | "cancelSchedule", string>;
   };
   lock?: {

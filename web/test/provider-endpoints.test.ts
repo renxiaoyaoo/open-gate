@@ -12,8 +12,9 @@ process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify({ schemaVersion: 1, access
   baseUrl: "https://device.provider.example", credentials: { appId: "test", appKey: "test", iotKey: "test", hmacKey: "test", deviceId: "test" },
   client: { version: "1", secretVersion: "1", platformId: "1", clientType: "1", language: "en", source: "test", module: "test" },
   routes: { sms: "/account/sms", login: "/account/login", homes: "/homes", devices: "/devices", templateMap: "/templates/map", templateGet: "/templates/get", properties: "/properties/{deviceId}", action: "/actions/{action}/{deviceId}" },
-  properties: { program: "program", power: "power" }, actions: { start: "start", pause: "pause", schedule: "schedule", cancelSchedule: "cancel" },
+  properties: { program: "program", power: "power", parameters: { temperature_level: "temperature", dry_level: "dryness", dry_temp: "sanitize", crease_resist_old: "crease", dry_time_new: "time" } }, actions: { start: "start", pause: "pause", schedule: "schedule", cancelSchedule: "cancel" },
 } });
+const { OpenDeviceProvider } = await import("../lib/opendevice-provider.ts");
 const { UpstreamError, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, encryptMobile, isAuthenticationExpired, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
 const { publicDoor } = await import("../lib/public-door.ts");
 const { personalDisplayName } = await import("../lib/account-name.ts");
@@ -21,6 +22,20 @@ const { personalDisplayName } = await import("../lib/account-name.ts");
 test("routes configured provider APIs", () => {
   assert.equal(providerUrl("gateway", "account/sms").href, "https://gateway.provider.example/account/sms");
   assert.equal(providerUrl("mobile", "account/login").href, "https://mobile.provider.example/api/account/login");
+});
+
+test("maps only supported dryer parameters into one property update", async () => {
+  const originalFetch = globalThis.fetch;
+  let captured: RequestInit | undefined;
+  globalThis.fetch = async (_input, init) => {
+    captured = init;
+    return new Response(JSON.stringify({ code: 0, data: {} }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  try {
+    await new OpenDeviceProvider({ uid: "user", accessToken: "token", deviceId: "client" }).configureProgram("dryer", 43, { temperature_level: 2, dry_level: 3, dry_temp: 1, crease_resist_old: 1 });
+  } finally { globalThis.fetch = originalFetch; }
+  assert.deepEqual(JSON.parse(String(captured?.body)), { program: 43, temperature: 2, dryness: 3, sanitize: 1, crease: 1 });
+  assert.throws(() => new OpenDeviceProvider().configureProgram("dryer", 43, { dry_level: 99 }));
 });
 
 test("matches the provider app's literal sessionId URL concatenation", () => {

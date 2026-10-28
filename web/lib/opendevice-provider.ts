@@ -44,6 +44,19 @@ export class OpenDeviceProvider {
   }
   status(deviceId: string) { return this.thing("GET", deviceRoute("properties", { deviceId })); }
   program(deviceId: string, programId: number) { if (!DRYER_PROGRAM_IDS.has(programId)) throw new Error("Unsupported dryer program"); return this.thing("PUT", deviceRoute("properties", { deviceId }), { [this.config.properties.program]: programId }); }
+  configureProgram(deviceId: string, programId: number, parameters: Record<string, number>) {
+    const program = DRYER_PROGRAMS.find((item) => item.value === programId);
+    if (!program) throw new Error("Unsupported dryer program");
+    const allowed = new Map(program.parameters.map((parameter) => [parameter.property, new Set(parameter.values.map((option) => option.value))]));
+    const body: Record<string, number> = { [this.config.properties.program]: programId };
+    for (const [key, value] of Object.entries(parameters)) {
+      const values = allowed.get(key as keyof typeof this.config.properties.parameters);
+      const property = this.config.properties.parameters?.[key as keyof NonNullable<typeof this.config.properties.parameters>];
+      if (!values?.has(value) || !property) throw new Error("Unsupported dryer parameter");
+      body[property] = value;
+    }
+    return this.thing("PUT", deviceRoute("properties", { deviceId }), body);
+  }
   power(deviceId: string, power: boolean) { return this.thing("PUT", deviceRoute("properties", { deviceId }), { [this.config.properties.power]: power }); }
   action(deviceId: string, action: keyof ProviderBundleActions, data: unknown) { const target = this.config.actions[action]; if (!target) throw new Error("Unsupported dryer action"); return this.thing("POST", deviceRoute("action", { action: target, deviceId }), data); }
   private thing(method: string, alias: string, data?: unknown) { return this.request(alias, { method, data, query: `?requestId=${randomBytes(16).toString("hex")}&sync=true`, headers: { caller: this.appId, "call-source": this.config.client.source, "call-module": this.config.client.module } }); }
