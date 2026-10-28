@@ -9,6 +9,7 @@ paths:
   /doors:
     get:
       summary: List aggregated doors
+      description: Reads current resources, common selection, and ordering from each provider without a server-side resource cache.
       responses: { "200": { description: Opaque door list } }
   /doors/{doorKey}/open:
     post:
@@ -29,7 +30,7 @@ paths:
       responses: { "200": { description: Account list } }
   /accounts/{accountHandle}:
     delete:
-      summary: Remove an account and its cached access data
+      summary: Remove an account and its encrypted upstream session
       parameters: [{ $ref: "#/components/parameters/accountHandle" }]
       responses: { "200": { description: Removed } }
   /accounts/{accountHandle}/sms:
@@ -45,4 +46,4 @@ paths:
 components:
   parameters:
     accountHandle: { name: accountHandle, in: path, required: true, schema: { type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$" } }
-    doorKey: { name: doorKey, in: path, required: true, schema: { type: string, format: uuid } }
+    doorKey: { name: doorKey, in: path, required: true, description: Encrypted opaque operation handle returned by the current door list, schema: { type: string, pattern: '^v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$', maxLength: 1024 } }

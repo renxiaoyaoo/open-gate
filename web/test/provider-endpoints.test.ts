@@ -14,8 +14,10 @@ process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify({ schemaVersion: 1, access
   routes: { sms: "/account/sms", login: "/account/login", homes: "/homes", devices: "/devices", templateMap: "/templates/map", templateGet: "/templates/get", properties: "/properties/{deviceId}", action: "/actions/{action}/{deviceId}" },
   properties: { program: "program", power: "power", parameters: { temperature_level: { property: "temperature" }, dry_level: { property: "dryness" }, dry_temp: { property: "sanitize" }, crease_resist_old: { property: "crease", type: "boolean" }, dry_time_new: { property: "time" } } }, actions: { start: "start", pause: "pause", schedule: "schedule", cancelSchedule: "cancel" },
 } });
+process.env.OPENHOME_SESSION_ENCRYPTION_KEY = "00".repeat(32);
 const { OpenDeviceProvider } = await import("../lib/opendevice-provider.ts");
 const { isProviderBundle } = await import("../lib/provider-bundle.ts");
+const { createDoorHandle, readDoorHandle } = await import("../lib/door-handle.ts");
 const { UpstreamError, absorbSetCookies, appendRawSessionId, communityCodes, communityIds, cookieHeader, dedupeDoors, doorPassword, doorSortBody, encryptMobile, isAuthenticationExpired, isSmsAccepted, isSuccess, loginCredential, normalizeDoors, openDoorBody, parseUpstreamCookies, providerPost, providerUrl, serializeUpstreamCookies, signHeaders, signMobileBody, supportsDoorPassword } = await import("../lib/provider.ts");
 const { publicDoor } = await import("../lib/public-door.ts");
 const { personalDisplayName } = await import("../lib/account-name.ts");
@@ -26,6 +28,14 @@ test("rejects incomplete provider bundles before a feature uses them", () => {
   const incomplete = structuredClone(valid);
   delete incomplete.device.actions.cancelSchedule;
   assert.equal(isProviderBundle(incomplete), false);
+});
+
+test("carries a door target in an opaque encrypted handle without persistence", () => {
+  const handle = createDoorHandle("account-1", { communityId: 12, doorControlId: 34, name: "East", communityCode: "private-code", mac: "001122334455", passwordSupported: true });
+  assert.equal(handle.includes("account-1"), false);
+  assert.equal(handle.includes("001122334455"), false);
+  assert.deepEqual(readDoorHandle(handle), { accountId: "account-1", communityId: 12, doorControlId: 34, communityCode: "private-code", mac: "001122334455", passwordSupported: true });
+  assert.throws(() => readDoorHandle(`${handle.slice(0, -1)}${handle.endsWith("A") ? "B" : "A"}`));
 });
 
 test("routes configured provider APIs", () => {

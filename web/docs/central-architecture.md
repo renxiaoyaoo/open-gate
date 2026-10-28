@@ -7,7 +7,7 @@ Web shell / native OpenHome clients
           |
  module use cases (OpenGate, OpenDevice, future modules)
           |                         |
- stable domain models       shared security/audit primitives
+ stable domain models       shared security/error primitives
           \_________________________/
                        |
           storage ports + provider adapters
@@ -35,17 +35,21 @@ module UI -> unified module provider -> RemoteOpenHomeProvider -> OpenHome API
                               `------> LocalProvider -> provider from this device
 ```
 
-Remote mode keeps upstream sessions, cached resources, preferences, and audit
-records in D1 or SQLite so several clients can share one center. Local mode does
-not call the OpenHome database and keeps its upstream session in platform secure
-storage. The same upstream account must not be active in both modes when the
-provider enforces single-session login. The current Web deployment may rely on
-its deployment access boundary; native remote access will require revocable
-per-device credentials before release.
+Remote mode keeps only accounts and encrypted upstream sessions in D1 or SQLite
+so several clients can share one center. Resource lists, provider-owned common
+selection, and ordering are read from the provider on every request. Encrypted
+opaque resource handles carry the target needed for an immediate operation, so
+the center does not persist resource caches or upstream identifiers. Duplicate
+open suppression is short-lived process memory, not an activity record. Local
+mode does not call the OpenHome database and keeps its upstream session in
+platform secure storage. The same upstream account must not be active in both
+modes when the provider enforces single-session login. The current Web
+deployment may rely on its deployment access boundary; native remote access
+will require revocable per-device credentials before release.
 
 Sessions are encrypted with AES-256-GCM. Mobile numbers are retained only as an
 HMAC fingerprint and a display mask. Removing an account deletes its encrypted
-session and cached resources through foreign-key cascades. The encryption key is
+session through a foreign-key cascade. The encryption key is
 deployment identity and must survive ordinary releases; browser login cookies
 remain hostname-scoped and require an explicit migration or reauthentication
 when the hostname changes.

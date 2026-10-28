@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { assertCentralEnabled } from "@/lib/central";
 import { jsonError } from "@/lib/http";
-import { setProviderDoorSelected } from "@/lib/provider-service";
+import { setProviderDoorSelected } from "@/lib/access-service";
 
 export async function PATCH(request: Request, context: { params: Promise<{ doorKey: string }> }) {
   try {
