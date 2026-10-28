@@ -1,26 +1,28 @@
-import { cookies } from "next/headers";
+import { randomUUID } from "node:crypto";
 import { OpenLockProvider, type OpenLockSession } from "./openlock-provider";
-import { openSession, sealSession } from "./session-crypto";
+import { assertCentralEnabled, loadProviderSession, persistProviderSession, removeProviderAccount, saveProviderSession } from "./central";
+import { openSession } from "./session-crypto.ts";
 
-const COOKIE = "openhome_openlock_session";
-const cookieOptions = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 };
+const LEGACY_COOKIE = "openhome_openlock_session";
+function legacyCookie(request: Request) { return request.headers.get("cookie")?.split(/;\s*/).find((part) => part.startsWith(`${LEGACY_COOKIE}=`))?.slice(LEGACY_COOKIE.length + 1); }
+async function storedSession(request: Request, accountId?: string) { try { return { ...(await loadProviderSession<OpenLockSession>("openlock", accountId)), migrated: false }; } catch (error) { const raw = legacyCookie(request); if (!raw || accountId) throw error; const session = openSession<OpenLockSession>(decodeURIComponent(raw)); const id = await saveProviderSession("openlock", `ol-${randomUUID()}`, "", session.displayName || null, session); return { accountId: id, session, migrated: true }; } }
+function clearLegacy(response: Response) { response.headers.append("set-cookie", `${LEGACY_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`); return response; }
 
 export async function callOpenLock(operation: string, request: Request) {
-  const jar = await cookies();
-  const raw = jar.get(COOKIE)?.value;
-  const session = raw ? openSession<OpenLockSession>(raw) : undefined;
+  assertCentralEnabled();
   if (operation === "login") {
     const { phone, password } = await request.json() as { phone?: string; password?: string };
     const next = await new OpenLockProvider().passwordLogin(phone || "", password || "");
-    jar.set(COOKIE, sealSession(next), cookieOptions);
-    return Response.json({ ok: true, data: { displayName: next.displayName } });
+    const accountId = await saveProviderSession("openlock", `ol-${randomUUID()}`, phone || "", next.displayName || null, next);
+    return Response.json({ ok: true, data: { accountId, displayName: next.displayName } });
   }
-  if (operation === "logout") { jar.delete(COOKIE); return Response.json({ ok: true }); }
-  if (!session) return Response.json({ ok: false, message: "请先登录" }, { status: 401 });
-  const provider = new OpenLockProvider(session);
-  const url = new URL(request.url); const lockId = url.searchParams.get("lockId") || "";
+  const url = new URL(request.url);
+  if (operation === "logout") { const body = await request.json().catch(() => ({})) as { accountId?: string }; await removeProviderAccount("openlock", body.accountId); return clearLegacy(Response.json({ ok: true })); }
+  const stored = await storedSession(request, url.searchParams.get("accountId") || undefined);
+  const provider = new OpenLockProvider(stored.session);
+  const lockId = url.searchParams.get("lockId") || "";
   let data: unknown;
-  if (operation === "profile") data = { displayName: session.displayName };
+  if (operation === "profile") { const response = Response.json({ ok: true, data: { accountId: stored.accountId, displayName: stored.session.displayName } }); return stored.migrated ? clearLegacy(response) : response; }
   else if (operation === "devices") data = await provider.devices();
   else if (!lockId) throw new Error("缺少设备标识");
   else if (operation === "detail") data = await provider.detail(lockId);
@@ -35,7 +37,7 @@ export async function callOpenLock(operation: string, request: Request) {
   else if (operation === "captures") {
     data = await provider.captures(lockId);
     const refreshed = provider.sessionState();
-    if (refreshed) jar.set(COOKIE, sealSession(refreshed), cookieOptions);
+    if (refreshed) await persistProviderSession("openlock", stored.accountId, refreshed);
   }
   else throw new Error("不支持的 OpenLock 操作");
   return Response.json({ ok: true, data });

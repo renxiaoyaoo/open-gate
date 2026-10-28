@@ -1,49 +1,82 @@
 openapi: 3.1.0
 info:
   title: OpenHome API
-  version: 1.0.0
-  description: Provider-neutral, multi-account access hub. Account ownership and upstream identifiers stay inside the service boundary.
-servers:
-  - url: https://your-open-home.example/api/v1
+  version: 1.1.0
+  description: Provider-neutral APIs backed by encrypted provider-scoped server sessions.
+servers: [{ url: https://your-open-home.example/api/v1 }]
+security: [{ accessBoundary: [] }]
 paths:
-  /doors:
-    get:
-      summary: List aggregated doors
-      description: Reads current resources, common selection, and ordering from each provider without a server-side resource cache.
-      responses: { "200": { description: Opaque door list } }
-  /doors/{doorKey}/open:
-    post:
-      summary: Open a door
-      parameters:
-        - { $ref: "#/components/parameters/doorKey" }
-        - { name: Idempotency-Key, in: header, required: false, schema: { type: string } }
-      responses: { "200": { description: Provider request completed } }
-  /doors/{doorKey}/password:
-    get:
-      summary: Get a temporary access code when supported
-      parameters: [{ $ref: "#/components/parameters/doorKey" }]
-      responses: { "200": { description: Temporary code } }
   /accounts:
-    get:
-      summary: List signed-in accounts
-      description: Returns only an opaque ID and display name.
-      responses: { "200": { description: Account list } }
+    get: { summary: List connected OpenGate accounts, responses: { "200": { description: Account list } } }
   /accounts/{accountHandle}:
-    delete:
-      summary: Remove an account and its encrypted upstream session
-      parameters: [{ $ref: "#/components/parameters/accountHandle" }]
-      responses: { "200": { description: Removed } }
+    delete: { summary: Disconnect an OpenGate account, parameters: [{ $ref: "#/components/parameters/accountHandle" }], responses: { "200": { description: Disconnected } } }
   /accounts/{accountHandle}/sms:
-    post:
-      summary: Request a one-time login code
-      parameters: [{ $ref: "#/components/parameters/accountHandle" }]
-      responses: { "200": { description: Accepted by provider } }
+    post: { summary: Request an OpenGate login code, parameters: [{ $ref: "#/components/parameters/accountHandle" }], requestBody: { $ref: "#/components/requestBodies/SmsRequest" }, responses: { "200": { description: Accepted } } }
   /accounts/{accountHandle}/login:
-    post:
-      summary: Add or refresh an account session
-      parameters: [{ $ref: "#/components/parameters/accountHandle" }]
-      responses: { "200": { description: Signed in } }
+    post: { summary: Connect or refresh an OpenGate account, parameters: [{ $ref: "#/components/parameters/accountHandle" }], requestBody: { $ref: "#/components/requestBodies/GateLogin" }, responses: { "200": { description: Connected } } }
+  /doors:
+    get: { summary: List current aggregated doors without a resource cache, responses: { "200": { description: Door list } } }
+  /doors/{doorKey}:
+    patch: { summary: Change provider-side common-door selection, parameters: [{ $ref: "#/components/parameters/doorKey" }], responses: { "200": { description: Updated } } }
+  /doors/{doorKey}/open:
+    post: { summary: Open a door, parameters: [{ $ref: "#/components/parameters/doorKey" }, { name: Idempotency-Key, in: header, required: false, schema: { type: string } }], responses: { "200": { description: Completed } } }
+  /doors/{doorKey}/password:
+    get: { summary: Get a temporary door code, parameters: [{ $ref: "#/components/parameters/doorKey" }], responses: { "200": { description: Temporary code } } }
+  /dryer/sms:
+    post: { summary: Request an OpenDevice login code, requestBody: { $ref: "#/components/requestBodies/SmsRequest" }, responses: { "200": { description: Accepted } } }
+  /dryer/login:
+    post: { summary: Connect an OpenDevice account, requestBody: { $ref: "#/components/requestBodies/DeviceLogin" }, responses: { "200": { description: Connected account handle } } }
+  /dryer/logout:
+    post: { summary: Disconnect an OpenDevice account, responses: { "200": { description: Disconnected } } }
+  /dryer/profile:
+    get: { summary: Get active OpenDevice account, responses: { "200": { description: Account profile } } }
+  /dryer/homes:
+    get: { summary: List current homes, responses: { "200": { description: Home list } } }
+  /dryer/devices:
+    get: { summary: List current devices, parameters: [{ $ref: "#/components/parameters/homeId" }], responses: { "200": { description: Device list } } }
+  /dryer/capabilities:
+    get: { summary: Get current programs and parameters, parameters: [{ $ref: "#/components/parameters/homeId" }, { $ref: "#/components/parameters/deviceId" }], responses: { "200": { description: Capabilities } } }
+  /dryer/status:
+    get: { summary: Read current dryer state, parameters: [{ $ref: "#/components/parameters/deviceId" }], responses: { "200": { description: Current state } } }
+  /dryer/program:
+    post: { summary: Select a program or set its parameters, requestBody: { $ref: "#/components/requestBodies/DeviceCommand" }, responses: { "200": { description: Applied } } }
+  /dryer/power:
+    post: { summary: Set dryer power, requestBody: { $ref: "#/components/requestBodies/DeviceCommand" }, responses: { "200": { description: Applied } } }
+  /dryer/action:
+    post: { summary: Start, pause, schedule, or cancel a schedule, requestBody: { $ref: "#/components/requestBodies/DeviceCommand" }, responses: { "200": { description: Applied } } }
+  /lock/login:
+    post: { summary: Connect an OpenLock account, responses: { "200": { description: Connected account handle } } }
+  /lock/logout:
+    post: { summary: Disconnect an OpenLock account, responses: { "200": { description: Disconnected } } }
+  /lock/profile:
+    get: { summary: Get active OpenLock account, responses: { "200": { description: Account profile } } }
+  /lock/devices:
+    get: { summary: List current locks, responses: { "200": { description: Lock list } } }
+  /lock/detail:
+    get: { summary: Read Wi-Fi and battery state, parameters: [{ $ref: "#/components/parameters/lockId" }], responses: { "200": { description: Lock state } } }
+  /lock/lock-dynamics:
+    get: { summary: List lock dynamics, parameters: [{ $ref: "#/components/parameters/lockId" }], responses: { "200": { description: Records } } }
+  /lock/security-logs:
+    get: { summary: List security events, parameters: [{ $ref: "#/components/parameters/lockId" }], responses: { "200": { description: Records } } }
+  /lock/operation-logs:
+    get: { summary: List operation records, parameters: [{ $ref: "#/components/parameters/lockId" }], responses: { "200": { description: Records } } }
+  /lock/captures:
+    get: { summary: List seven days of capture photos and videos, parameters: [{ $ref: "#/components/parameters/lockId" }], responses: { "200": { description: Captures } } }
+  /lock/temporary-password:
+    get: { summary: Read temporary-password capacity, parameters: [{ $ref: "#/components/parameters/lockId" }], responses: { "200": { description: Capacity } } }
+  /lock/temporary-password-create:
+    post: { summary: Generate a temporary password, parameters: [{ $ref: "#/components/parameters/lockId" }], responses: { "200": { description: Password and expiry } } }
 components:
+  securitySchemes:
+    accessBoundary: { type: apiKey, in: cookie, name: CF_Authorization, description: Deployment access boundary; an equivalent mechanism may be used. }
   parameters:
     accountHandle: { name: accountHandle, in: path, required: true, schema: { type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$" } }
-    doorKey: { name: doorKey, in: path, required: true, description: Encrypted opaque operation handle returned by the current door list, schema: { type: string, pattern: '^v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$', maxLength: 1024 } }
+    doorKey: { name: doorKey, in: path, required: true, schema: { type: string, maxLength: 1024 } }
+    homeId: { name: homeId, in: query, required: true, schema: { type: string } }
+    deviceId: { name: deviceId, in: query, required: true, schema: { type: string } }
+    lockId: { name: lockId, in: query, required: true, schema: { type: string } }
+  requestBodies:
+    SmsRequest: { required: true, content: { application/json: { schema: { type: object, required: [mobile], properties: { mobile: { type: string } } } } } }
+    GateLogin: { required: true, content: { application/json: { schema: { type: object, required: [mobile, smsCode], properties: { mobile: { type: string }, smsCode: { type: string } } } } } }
+    DeviceLogin: { required: true, content: { application/json: { schema: { type: object, required: [mobile, code], properties: { mobile: { type: string }, code: { type: string } } } } } }
+    DeviceCommand: { required: true, content: { application/json: { schema: { type: object, required: [deviceId], additionalProperties: true, properties: { deviceId: { type: string } } } } } }

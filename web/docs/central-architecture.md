@@ -35,7 +35,7 @@ module UI -> unified module provider -> RemoteOpenHomeProvider -> OpenHome API
                               `------> LocalProvider -> provider from this device
 ```
 
-Remote mode keeps only accounts and encrypted upstream sessions in D1 or SQLite
+Remote mode keeps only provider-scoped accounts and encrypted upstream sessions in D1 or SQLite
 so several clients can share one center. Resource lists, provider-owned common
 selection, and ordering are read from the provider on every request. Encrypted
 opaque resource handles carry the target needed for an immediate operation, so
@@ -49,8 +49,9 @@ will require revocable per-device credentials before release.
 
 Sessions are encrypted with AES-256-GCM. Mobile numbers are retained only as an
 HMAC fingerprint and a display mask. Removing an account deletes its encrypted
-session through a foreign-key cascade. The encryption key is
-deployment identity and must survive ordinary releases; browser login cookies
+session through a foreign-key cascade. OpenGate, OpenDevice, and OpenLock all
+read these server-held sessions, so browsers do not own upstream login state.
+The encryption key is deployment identity and must survive ordinary releases; access-boundary cookies
 remain hostname-scoped and require an explicit migration or reauthentication
 when the hostname changes.
 
