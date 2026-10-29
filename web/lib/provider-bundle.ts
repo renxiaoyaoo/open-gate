@@ -29,7 +29,7 @@ export type ProviderBundle = {
     client: Record<string, string>;
     routes: Record<LockRoute, string>;
     media: {
-      baseUrl: string; route: string; eventRequest: Record<string, unknown>; thumbnailRequest: Record<string, unknown>; successPath: string; successValue: string;
+      baseUrl: string; route: string; eventRequest: Record<string, unknown>; thumbnailRequest: Record<string, unknown>; videoSignRequest?: Record<string, unknown>; successPath: string; successValue: string;
       alarmThumbnailTemplate: string;
       auth?: { route: string; appKey: string; appSecret: string; openId: string; action: string; signatureExclude: string[]; tokenPath: string; expiryPath: string };
     };
@@ -38,7 +38,7 @@ export type ProviderBundle = {
       battery: string; cameraBattery: string; batteryUpdatedAt: string; profileName: string;
       logItems: string; logDate?: string; logTime: string; logContent: string; logPicture?: string; temporaryPasswordCount: string;
       mediaProductId: string; mediaDeviceName: string; mediaEvents: string;
-      mediaEventId: string; mediaEventTime: string; mediaEventEndTime?: string; mediaEventType?: string; mediaThumbnail: string; mediaVideo?: string; mediaContext?: string; mediaListOver?: string; signedThumbnails: string; signedThumbnailUrl: string;
+      mediaEventId: string; mediaEventTime: string; mediaEventEndTime?: string; mediaEventType?: string; mediaThumbnail: string; mediaVideo?: string; mediaContext?: string; mediaListOver?: string; signedThumbnails: string; signedThumbnailUrl: string; signedVideoUrl?: string;
     };
   };
 };

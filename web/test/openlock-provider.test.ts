@@ -9,8 +9,8 @@ const bundle = { schemaVersion: 1,
 (bundle as { lock?: unknown }).lock = {
   baseUrl: "https://lock.provider.example", identityCipher: "private-identity", client: { appVersion: "1", clientType: "test" },
   routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", temporaryPasswordCreate: "/password/create", users: "/users", thumbnail: "/media/sign" },
-  media: { baseUrl: "https://media.provider.example", route: "/events", alarmThumbnailTemplate: "/alarms/{pictureId}.jpg", successPath: "result", successValue: "ok", auth: { route: "/session", appKey: "test-app", appSecret: "test-secret", openId: "test-user", action: "session-action", signatureExclude: ["Action"], tokenPath: "payload.token", expiryPath: "payload.expires" }, eventRequest: { credential: "{accessToken}", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}", context: "{context}" }, thumbnailRequest: { credential: "{accessToken}", action: "private-action", device: "{deviceId}", paths: "{thumbnails}" } },
-  fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", logPicture: "picture", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaEventEndTime: "ended", mediaThumbnail: "thumbnail", mediaVideo: "payload.video", mediaContext: "payload.context", mediaListOver: "payload.done", signedThumbnails: "signed", signedThumbnailUrl: "url" },
+  media: { baseUrl: "https://media.provider.example", route: "/events", alarmThumbnailTemplate: "/alarms/{pictureId}.jpg", successPath: "result", successValue: "ok", auth: { route: "/session", appKey: "test-app", appSecret: "test-secret", openId: "test-user", action: "session-action", signatureExclude: ["Action"], tokenPath: "payload.token", expiryPath: "payload.expires" }, eventRequest: { credential: "{accessToken}", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}", context: "{context}" }, thumbnailRequest: { credential: "{accessToken}", action: "private-action", device: "{deviceId}", paths: "{thumbnails}" }, videoSignRequest: { credential: "{accessToken}", action: "sign-video", video: "{video}", expires: "{videoExpiresAt}" } },
+  fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", logPicture: "picture", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaEventEndTime: "ended", mediaThumbnail: "thumbnail", mediaVideo: "payload.video", mediaContext: "payload.context", mediaListOver: "payload.done", signedThumbnails: "signed", signedThumbnailUrl: "url", signedVideoUrl: "payload.signedVideo" },
 };
 process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify(bundle);
 const { OpenLockProvider } = await import("../lib/openlock-provider.ts");
@@ -53,6 +53,7 @@ test("builds media requests from private templates and returns signed captures",
     const url = String(input); const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {};
     calls.push({ url, body });
     if (url.includes("/session")) return Response.json({ payload: { token: "fresh-media-token", expires: Math.floor(Date.now() / 1000) + 3600 } });
+    if (url.includes("/events") && body.action === "sign-video") return Response.json({ result: "ok", payload: { signedVideo: "https://videos.example/signed.m3u8" } });
     if (url.includes("/events")) return body.context
       ? Response.json({ result: "ok", payload: { done: true, events: [{ eventId: "second", created: 12, thumbnail: "b" }] } })
       : Response.json({ result: "ok", payload: { context: "next", done: false, video: "https://videos.example/first.m3u8", events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", ended: 18, thumbnail: "a" }] } });
@@ -61,7 +62,7 @@ test("builds media requests from private templates and returns signed captures",
   };
   try {
     const session = { token: "session" }; const provider = new OpenLockProvider(session); const first = await provider.captures("7"); const second = await provider.captures("7", first.nextCursor);
-    assert.deepEqual(first.items, [{ id: "first-10-0", time: 10, type: "first", image: "https://images.example/a", video: "https://videos.example/first.m3u8?starttime_epoch=10&endtime_epoch=18" }]);
+    assert.deepEqual(first.items, [{ id: "first-10-0", time: 10, type: "first", image: "https://images.example/a", video: "https://videos.example/signed.m3u8" }]);
     assert.ok(first.nextCursor);
     assert.deepEqual(second, { items: [{ id: "second-12-0", time: 12, type: "second", image: "https://images.example/b", video: undefined }], nextCursor: undefined });
     assert.equal(provider.sessionState()?.mediaToken, "fresh-media-token");
@@ -71,9 +72,10 @@ test("builds media requests from private templates and returns signed captures",
   assert.ok(Number(calls[2].body.from) <= Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60 + 2);
   assert.equal(calls[3].body.device, "7");
   assert.deepEqual(calls[3].body.paths, ["a"]);
-  assert.equal(calls[5].body.context, "next");
-  assert.equal(calls[6].body.credential, "fresh-media-token");
-  assert.deepEqual(calls[6].body.paths, ["b"]);
+  assert.equal(calls[4].body.action, "sign-video");
+  assert.equal(calls[6].body.context, "next");
+  assert.equal(calls[7].body.credential, "fresh-media-token");
+  assert.deepEqual(calls[7].body.paths, ["b"]);
 });
 
 test("normalizes device status, records, and temporary password capacity", async () => {

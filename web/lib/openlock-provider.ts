@@ -155,10 +155,17 @@ export class OpenLockProvider {
       const signedValue = at(signedRoot, this.config!.fields.signedThumbnails);
       if (Array.isArray(signedValue)) signed.push(...signedValue);
     }
-    const items = candidates.map(({ event, video }, index) => {
+    const signedVideos = await Promise.all(candidates.map(async ({ video }) => {
+      if (!video || !this.config!.media.videoSignRequest || !this.config!.fields.signedVideoUrl) return video;
+      const response = await fetch(new URL(this.config!.media.route, this.config!.media.baseUrl), { method: "POST", headers: { "content-type": "application/json;charset=utf-8" }, body: JSON.stringify(expand(this.config!.media.videoSignRequest, { ...values, video, videoExpiresAt: now + 3600, requestId: randomUUID() })), signal: AbortSignal.timeout(12_000) });
+      const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+      const signedUrl = at(payload, this.config!.fields.signedVideoUrl);
+      return response.ok && String(at(payload, this.config!.media.successPath)) === this.config!.media.successValue && typeof signedUrl === "string" && signedUrl.startsWith("https://") ? signedUrl : undefined;
+    }));
+    const items = candidates.map(({ event }, index) => {
       const eventCode = String(at(event, this.config!.fields.mediaEventType || "EventType") ?? at(event, this.config!.fields.mediaEventId) ?? "");
       const time = eventTime(at(event, this.config!.fields.mediaEventTime) ?? at(event, "EventTime") ?? at(event, "CreateTime"));
-      return { id: `${eventCode || "event"}-${time}-${index}`, time, type: eventCode, image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? ""), video };
+      return { id: `${eventCode || "event"}-${time}-${index}`, time, type: eventCode, image: String(at(signed[index], this.config!.fields.signedThumbnailUrl) ?? ""), video: signedVideos[index] };
     }).filter((item) => item.image.startsWith("https://"));
     return { items, nextCursor };
   }
