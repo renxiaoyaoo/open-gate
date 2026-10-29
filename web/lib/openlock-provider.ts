@@ -20,6 +20,11 @@ function eventTime(value: unknown) {
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : Math.floor(parsed / 1000);
 }
+function mediaCursor(value: string) {
+  if (!value) return { context: "", anchor: Math.floor(Date.now() / 1000) };
+  try { const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as { context?: unknown; anchor?: unknown }; const anchor = Number(parsed.anchor); if (typeof parsed.context === "string" && Number.isFinite(anchor) && anchor > 0) return { context: parsed.context, anchor }; } catch { /* reject malformed public cursors below */ }
+  throw new Error("OpenLock media cursor is invalid");
+}
 function expand(value: unknown, values: Record<string, unknown>): unknown {
   if (Array.isArray(value)) return value.map((item) => expand(item, values));
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, expand(item, values)]));
@@ -107,11 +112,11 @@ export class OpenLockProvider {
     return { name: read("deviceName"), wifiName: read("wifiName"), wifiSignal: read("wifiSignal"), battery: read("battery"), cameraBattery: read("cameraBattery"), batteryUpdatedAt: read("batteryUpdatedAt") };
   }
 
-  async captures(lockId: string, context = "") {
+  async captures(lockId: string, cursor = "") {
     const detailData = await this.request("detail", { query: { lockId } });
     const root = Array.isArray(detailData) ? detailData[0] : detailData;
     const detail = at(root, this.config!.fields.detail);
-    const now = Math.floor(Date.now() / 1000);
+    const { context, anchor: now } = mediaCursor(cursor);
     const accessToken = await this.mediaToken();
     const values: Record<string, unknown> = {
       productId: at(detail, this.config!.fields.mediaProductId), deviceName: at(detail, this.config!.fields.mediaDeviceName),
@@ -133,7 +138,7 @@ export class OpenLockProvider {
     }
     const listOver = at(mediaPayload, this.config!.fields.mediaListOver || "data.Listover") === true;
     const contextValue = at(mediaPayload, this.config!.fields.mediaContext || "data.Context");
-    const nextCursor = !listOver && typeof contextValue === "string" && contextValue && contextValue !== context ? contextValue : undefined;
+    const nextCursor = !listOver && typeof contextValue === "string" && contextValue && contextValue !== context ? Buffer.from(JSON.stringify({ context: contextValue, anchor: now })).toString("base64url") : undefined;
     if (!candidates.length) return { items: [], nextCursor };
     const signed: unknown[] = [];
     for (let offset = 0; offset < candidates.length; offset += 40) {
