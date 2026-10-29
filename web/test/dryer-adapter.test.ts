@@ -28,4 +28,11 @@ test("publishes the observed target dryer programs and recommended DIY", () => {
   assert.equal(DRYER_PROGRAMS.find((item) => item.value === 83)?.parameters?.[0]?.values[2]?.value, 3);
   assert.equal(DRYER_PROGRAMS.find((item) => item.name === "羊毛")?.parameters?.[0]?.values[0]?.label, "+0分");
   assert.equal(DRYER_PROGRAMS.filter((item) => item.description).length, 2);
+  assert.deepEqual(DRYER_PROGRAMS.filter(({ group }) => group !== "DIY").map(({ name, minutes, parameters }) => [name, minutes, parameters?.length || 0]), [
+    ["混合", 100, 4], ["大件烘", 150, 4], ["小件烘", 50, 3], ["定时烘", 30, 1], ["热风暖衣", 30, 1], ["空气洗", 20, 1], ["快烘", 30, 0], ["冷风清新", 20, 1], ["除菌除螨", 180, 1], ["支架烘", 20, 2], ["晒被子", 45, 1], ["羊毛", 180, 1],
+    ["羽绒服", 150, 1], ["棉麻", 110, 4], ["婴儿服", 90, 4], ["衬衫", 50, 4], ["浴巾", 95, 4], ["羊毛护理", 25, 0], ["内衣", 100, 4], ["运动服", 115, 4], ["牛仔", 160, 4],
+  ]);
+  assert.deepEqual(DRYER_PROGRAMS.filter((item) => item.parameters?.some(({ property }) => property === "dry_time_new")).map(({ name, parameters }) => [name, parameters?.find(({ property }) => property === "dry_time_new")?.values.map(({ value }) => value)]), [
+    ["定时烘", Array.from({ length: 18 }, (_, index) => index * 10)], ["热风暖衣", [0, 10, 20, 30, 40, 50]], ["空气洗", [0, 5, 10, 15, 20, 25]], ["冷风清新", [0, 10, 20]], ["支架烘", Array.from({ length: 17 }, (_, index) => index * 10)], ["羊毛", [0, 60]], ["羽绒服", [0, 30, 60, 90]],
+  ]);
 });
