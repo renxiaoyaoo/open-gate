@@ -141,7 +141,7 @@ export class OpenLockProvider {
       const thumbnail = at(event, this.config!.fields.mediaThumbnail);
       if (typeof thumbnail !== "string" || !thumbnail) continue;
       const eventVideoValue = at(event, "VideoURL") ?? (this.config!.fields.mediaVideo ? at(event, this.config!.fields.mediaVideo) : undefined) ?? sharedVideo;
-      const video = eventVideo(eventVideoValue, event, this.config!.fields.mediaEventId, this.config!.fields.mediaEventTime, this.config!.fields.mediaEventEndTime, this.config!.media.fallbackVideoSeconds);
+      const video = eventVideo(eventVideoValue, event, this.config!.fields.mediaEventId, this.config!.fields.mediaEventTime, this.config!.fields.mediaEventEndTime, this.config!.media.videoSeconds);
       candidates.push({ event, thumbnail, video });
     }
     const listOver = at(mediaPayload, this.config!.fields.mediaListOver || "data.Listover") === true;
