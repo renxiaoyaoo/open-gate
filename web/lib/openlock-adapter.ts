@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { OpenLockProvider, type OpenLockSession } from "./openlock-provider";
 import { assertCentralEnabled, loadProviderSession, persistProviderSession, removeProviderAccount, saveProviderSession } from "./central";
 import { openSession } from "./session-crypto.ts";
+import { lockMediaUrl, proxyLockMedia } from "./lock-media.ts";
 
 const LEGACY_COOKIE = "openhome_openlock_session";
 function legacyCookie(request: Request) { return request.headers.get("cookie")?.split(/;\s*/).find((part) => part.startsWith(`${LEGACY_COOKIE}=`))?.slice(LEGACY_COOKIE.length + 1); }
@@ -19,6 +20,7 @@ export async function callOpenLock(operation: string, request: Request) {
   const url = new URL(request.url);
   if (operation === "logout") { const body = await request.json().catch(() => ({})) as { accountId?: string }; await removeProviderAccount("openlock", body.accountId); return clearLegacy(Response.json({ ok: true })); }
   const stored = await storedSession(request, url.searchParams.get("accountId") || undefined);
+  if (operation === "media") return proxyLockMedia(request, url.searchParams.get("token") || "");
   const provider = new OpenLockProvider(stored.session);
   const lockId = url.searchParams.get("lockId") || "";
   const cursor = url.searchParams.get("cursor") || "";
@@ -38,6 +40,7 @@ export async function callOpenLock(operation: string, request: Request) {
   }
   else if (operation === "captures") {
     data = await provider.captures(lockId, cursor);
+    data = { ...(data as { items: Array<{ video?: string }> }), items: (data as { items: Array<{ video?: string }> }).items.map((item) => item.video ? { ...item, video: lockMediaUrl(item.video) } : item) };
     const refreshed = provider.sessionState();
     if (refreshed) await persistProviderSession("openlock", stored.accountId, refreshed);
   }
