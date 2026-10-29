@@ -38,7 +38,7 @@ export type ProviderBundle = {
       battery: string; cameraBattery: string; batteryUpdatedAt: string; profileName: string;
       logItems: string; logDate?: string; logTime: string; logContent: string; logPicture?: string; temporaryPasswordCount: string;
       mediaProductId: string; mediaDeviceName: string; mediaEvents: string;
-      mediaEventId: string; mediaEventTime: string; mediaEventType?: string; mediaThumbnail: string; mediaVideo?: string; mediaContext?: string; mediaListOver?: string; signedThumbnails: string; signedThumbnailUrl: string;
+      mediaEventId: string; mediaEventTime: string; mediaEventEndTime?: string; mediaEventType?: string; mediaThumbnail: string; mediaVideo?: string; mediaContext?: string; mediaListOver?: string; signedThumbnails: string; signedThumbnailUrl: string;
     };
   };
 };

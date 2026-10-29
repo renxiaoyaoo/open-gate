@@ -10,7 +10,7 @@ const bundle = { schemaVersion: 1,
   baseUrl: "https://lock.provider.example", identityCipher: "private-identity", client: { appVersion: "1", clientType: "test" },
   routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", temporaryPasswordCreate: "/password/create", users: "/users", thumbnail: "/media/sign" },
   media: { baseUrl: "https://media.provider.example", route: "/events", alarmThumbnailTemplate: "/alarms/{pictureId}.jpg", successPath: "result", successValue: "ok", auth: { route: "/session", appKey: "test-app", appSecret: "test-secret", openId: "test-user", action: "session-action", signatureExclude: ["Action"], tokenPath: "payload.token", expiryPath: "payload.expires" }, eventRequest: { credential: "{accessToken}", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}", context: "{context}" }, thumbnailRequest: { credential: "{accessToken}", action: "private-action", device: "{deviceId}", paths: "{thumbnails}" } },
-  fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", logPicture: "picture", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaThumbnail: "thumbnail", mediaVideo: "payload.video", mediaContext: "payload.context", mediaListOver: "payload.done", signedThumbnails: "signed", signedThumbnailUrl: "url" },
+  fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", logPicture: "picture", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaEventEndTime: "ended", mediaThumbnail: "thumbnail", mediaVideo: "payload.video", mediaContext: "payload.context", mediaListOver: "payload.done", signedThumbnails: "signed", signedThumbnailUrl: "url" },
 };
 process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify(bundle);
 const { OpenLockProvider } = await import("../lib/openlock-provider.ts");
@@ -55,13 +55,13 @@ test("builds media requests from private templates and returns signed captures",
     if (url.includes("/session")) return Response.json({ payload: { token: "fresh-media-token", expires: Math.floor(Date.now() / 1000) + 3600 } });
     if (url.includes("/events")) return body.context
       ? Response.json({ result: "ok", payload: { done: true, events: [{ eventId: "second", created: 12, thumbnail: "b" }] } })
-      : Response.json({ result: "ok", payload: { context: "next", done: false, video: "https://videos.example/first.m3u8", events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", thumbnail: "a" }] } });
+      : Response.json({ result: "ok", payload: { context: "next", done: false, video: "https://videos.example/first.m3u8", events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", ended: 18, thumbnail: "a" }] } });
     if (url.includes("/media/sign")) return Response.json({ status: 1, success: true, data: [{ signed: [{ url: Array.isArray(body.paths) && body.paths[0] === "a" ? "https://images.example/a" : "https://images.example/b" }] }] });
     return Response.json({ status: 1, success: true, data: [{ status: { product: "product-1", mediaName: "device-1", mediaId: "id-1" } }] });
   };
   try {
     const session = { token: "session" }; const provider = new OpenLockProvider(session); const first = await provider.captures("7"); const second = await provider.captures("7", first.nextCursor);
-    assert.deepEqual(first.items, [{ id: "first-10-0", time: 10, type: "first", image: "https://images.example/a", video: "https://videos.example/first.m3u8" }]);
+    assert.deepEqual(first.items, [{ id: "first-10-0", time: 10, type: "first", image: "https://images.example/a", video: "https://videos.example/first.m3u8?starttime_epoch=10&endtime_epoch=18" }]);
     assert.ok(first.nextCursor);
     assert.deepEqual(second, { items: [{ id: "second-12-0", time: 12, type: "second", image: "https://images.example/b", video: undefined }], nextCursor: undefined });
     assert.equal(provider.sessionState()?.mediaToken, "fresh-media-token");

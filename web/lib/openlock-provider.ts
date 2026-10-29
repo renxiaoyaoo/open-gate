@@ -25,6 +25,14 @@ function mediaCursor(value: string) {
   try { const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as { context?: unknown; anchor?: unknown }; const anchor = Number(parsed.anchor); if (typeof parsed.context === "string" && Number.isFinite(anchor) && anchor > 0) return { context: parsed.context, anchor }; } catch { /* reject malformed public cursors below */ }
   throw new Error("OpenLock media cursor is invalid");
 }
+function eventVideo(base: unknown, event: unknown, eventIdPath: string, startPath: string, endPath?: string) {
+  if (typeof base !== "string" || !base.startsWith("https://")) return undefined;
+  const eventId = String(at(event, eventIdPath) ?? "");
+  if (eventId.toLowerCase().includes("static")) return undefined;
+  const start = eventTime(at(event, startPath)); const end = eventTime(at(event, endPath || "EndTime"));
+  if (!start || !end || end < start) return undefined;
+  const url = new URL(base); url.searchParams.set("starttime_epoch", String(start)); url.searchParams.set("endtime_epoch", String(end)); return url.toString();
+}
 function expand(value: unknown, values: Record<string, unknown>): unknown {
   if (Array.isArray(value)) return value.map((item) => expand(item, values));
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, expand(item, values)]));
@@ -127,13 +135,12 @@ export class OpenLockProvider {
     const mediaPayload = await mediaResponse.json().catch(() => ({})) as Record<string, unknown>;
     if (!mediaResponse.ok || String(at(mediaPayload, this.config!.media.successPath)) !== this.config!.media.successValue) throw new Error("OpenLock media event request failed");
     const eventsValue = at(mediaPayload, this.config!.fields.mediaEvents); const events = Array.isArray(eventsValue) ? eventsValue : [];
-    const sharedVideoValue = at(mediaPayload, this.config!.fields.mediaVideo || "data.VideoURL");
-    const sharedVideo = events.length === 1 && typeof sharedVideoValue === "string" && sharedVideoValue.startsWith("https://") ? sharedVideoValue : undefined;
+    const sharedVideo = at(mediaPayload, this.config!.fields.mediaVideo || "data.VideoURL");
     for (const event of events) {
       const thumbnail = at(event, this.config!.fields.mediaThumbnail);
       if (typeof thumbnail !== "string" || !thumbnail) continue;
-      const eventVideoValue = at(event, "VideoURL") ?? (this.config!.fields.mediaVideo ? at(event, this.config!.fields.mediaVideo) : undefined);
-      const video = typeof eventVideoValue === "string" && eventVideoValue.startsWith("https://") ? eventVideoValue : sharedVideo;
+      const eventVideoValue = at(event, "VideoURL") ?? (this.config!.fields.mediaVideo ? at(event, this.config!.fields.mediaVideo) : undefined) ?? sharedVideo;
+      const video = eventVideo(eventVideoValue, event, this.config!.fields.mediaEventId, this.config!.fields.mediaEventTime, this.config!.fields.mediaEventEndTime);
       candidates.push({ event, thumbnail, video });
     }
     const listOver = at(mediaPayload, this.config!.fields.mediaListOver || "data.Listover") === true;
