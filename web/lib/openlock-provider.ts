@@ -160,7 +160,13 @@ export class OpenLockProvider {
       const response = await fetch(new URL(this.config!.media.route, this.config!.media.baseUrl), { method: "POST", headers: { "content-type": "application/json;charset=utf-8" }, body: JSON.stringify(expand(this.config!.media.videoSignRequest, { ...values, video, videoExpiresAt: now + 3600, requestId: randomUUID() })), signal: AbortSignal.timeout(12_000) });
       const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
       const signedUrl = at(payload, this.config!.fields.signedVideoUrl);
-      return response.ok && typeof signedUrl === "string" && signedUrl.startsWith("https://") ? signedUrl : undefined;
+      if (!response.ok || typeof signedUrl !== "string") return undefined;
+      try {
+        const parsed = new URL(signedUrl);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return undefined;
+        parsed.protocol = "https:";
+        return parsed.toString();
+      } catch { return undefined; }
     }));
     const items = candidates.map(({ event }, index) => {
       const eventCode = String(at(event, this.config!.fields.mediaEventType || "EventType") ?? at(event, this.config!.fields.mediaEventId) ?? "");

@@ -53,7 +53,7 @@ test("builds media requests from private templates and returns signed captures",
     const url = String(input); const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {};
     calls.push({ url, body });
     if (url.includes("/session")) return Response.json({ payload: { token: "fresh-media-token", expires: Math.floor(Date.now() / 1000) + 3600 } });
-    if (url.includes("/events") && body.action === "sign-video") return Response.json({ Response: { SignedVideoURL: "https://videos.example/signed.m3u8" } });
+    if (url.includes("/events") && body.action === "sign-video") return Response.json({ Response: { SignedVideoURL: "http://videos.example/signed.m3u8" } });
     if (url.includes("/events")) return body.context
       ? Response.json({ result: "ok", payload: { done: true, events: [{ eventId: "second", created: 12, thumbnail: "b" }] } })
       : Response.json({ result: "ok", payload: { context: "next", done: false, video: "https://videos.example/first.m3u8", events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", ended: 18, thumbnail: "a" }] } });
