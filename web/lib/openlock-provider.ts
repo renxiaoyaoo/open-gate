@@ -25,13 +25,12 @@ function mediaCursor(value: string) {
   try { const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as { context?: unknown; anchor?: unknown }; const anchor = Number(parsed.anchor); if (typeof parsed.context === "string" && Number.isFinite(anchor) && anchor > 0) return { context: parsed.context, anchor }; } catch { /* reject malformed public cursors below */ }
   throw new Error("OpenLock media cursor is invalid");
 }
-function eventVideo(base: unknown, event: unknown, eventIdPath: string, startPath: string, endPath?: string, fallbackSeconds = 0) {
+function eventVideo(base: unknown, event: unknown, eventIdPath: string, startPath: string, endPath?: string) {
   if (typeof base !== "string" || !base.startsWith("https://")) return undefined;
   const eventId = String(at(event, eventIdPath) ?? "");
   if (eventId.toLowerCase().includes("static")) return undefined;
-  const start = eventTime(at(event, startPath)); let end = eventTime(at(event, endPath || "EndTime"));
-  if (start && end === start && Number.isSafeInteger(fallbackSeconds) && fallbackSeconds > 0) end += fallbackSeconds;
-  if (!start || !end || end < start) return undefined;
+  const start = eventTime(at(event, startPath)); const end = eventTime(at(event, endPath || "EndTime"));
+  if (!start || !end || end <= start) return undefined;
   const url = new URL(base); url.searchParams.set("starttime_epoch", String(start)); url.searchParams.set("endtime_epoch", String(end)); return url.toString();
 }
 function expand(value: unknown, values: Record<string, unknown>): unknown {
@@ -141,7 +140,7 @@ export class OpenLockProvider {
       const thumbnail = at(event, this.config!.fields.mediaThumbnail);
       if (typeof thumbnail !== "string" || !thumbnail) continue;
       const eventVideoValue = at(event, "VideoURL") ?? (this.config!.fields.mediaVideo ? at(event, this.config!.fields.mediaVideo) : undefined) ?? sharedVideo;
-      const video = eventVideo(eventVideoValue, event, this.config!.fields.mediaEventId, this.config!.fields.mediaEventTime, this.config!.fields.mediaEventEndTime, this.config!.media.videoSeconds);
+      const video = eventVideo(eventVideoValue, event, this.config!.fields.mediaEventId, this.config!.fields.mediaEventTime, this.config!.fields.mediaEventEndTime);
       candidates.push({ event, thumbnail, video });
     }
     const listOver = at(mediaPayload, this.config!.fields.mediaListOver || "data.Listover") === true;
