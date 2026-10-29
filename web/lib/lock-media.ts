@@ -17,7 +17,7 @@ function mediaTarget(token: string) {
 export async function proxyLockMedia(request: Request, token: string) {
   const target = mediaTarget(token);
   const headers = new Headers(); const range = request.headers.get("range"); if (range) headers.set("range", range);
-  const upstream = await fetch(target, { headers, redirect: "error", signal: AbortSignal.timeout(15_000) });
+  const upstream = await fetch(target, { headers, redirect: "manual", signal: AbortSignal.timeout(15_000) });
   if (!upstream.ok && upstream.status !== 206) throw new Error("媒体加载失败");
   const type = upstream.headers.get("content-type") || "application/octet-stream";
   if (/mpegurl|m3u8/i.test(type) || target.pathname.endsWith(".m3u8")) {
