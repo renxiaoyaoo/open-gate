@@ -142,12 +142,12 @@ export class OpenLockProvider {
     return groups.flatMap((group) => { const items = at(group, this.config!.fields.logItems); const date = String(at(group, this.config!.fields.logDate || "logDate") ?? ""); return Array.isArray(items) ? items.map((item) => {
       const time = String(at(item, this.config!.fields.logTime) ?? "");
       const picture = this.config!.fields.logPicture ? at(item, this.config!.fields.logPicture) : undefined;
-      const image = typeof picture === "string" && /^\d+$/.test(picture) ? this.config!.media.alarmImageTemplate.replace("{pictureId}", encodeURIComponent(picture)) : undefined;
-      return { time: date && !time.includes(date) ? `${date} ${time}`.trim() : time, content: String(at(item, this.config!.fields.logContent) ?? ""), image };
+      const pictureId = typeof picture === "string" && /^\d+$/.test(picture) ? picture : undefined;
+      return { time: date && !time.includes(date) ? `${date} ${time}`.trim() : time, content: String(at(item, this.config!.fields.logContent) ?? ""), pictureId };
     }) : []; });
   }
   private async pagedLogs(load: (page: number) => Promise<unknown>) {
-    const result: Array<{ time: string; content: string; image?: string }> = []; let previous = "";
+    const result: Array<{ time: string; content: string; pictureId?: string }> = []; let previous = "";
     for (let page = 1; page <= 10; page += 1) {
       const items = this.normalizeLogs(await load(page));
       const signature = JSON.stringify(items);
@@ -157,8 +157,27 @@ export class OpenLockProvider {
     }
     return result.filter((item, index, list) => list.findIndex((candidate) => candidate.time === item.time && candidate.content === item.content) === index);
   }
-  lockDynamics(lockId: string) { return this.pagedLogs((page) => this.request("securityLogs", { query: { lockId, pageNumber: String(page), pageSize: "20", type: "1" } })); }
-  securityLogs(lockId: string) { return this.pagedLogs((page) => this.request("securityLogs", { query: { lockId, pageNumber: String(page), pageSize: "20", type: "2" } })); }
+  private async signedLogPictures(lockId: string, logs: Array<{ time: string; content: string; pictureId?: string }>) {
+    const candidates = logs.filter((item): item is typeof item & { pictureId: string } => Boolean(item.pictureId));
+    if (!candidates.length) return logs.map((item) => ({ time: item.time, content: item.content }));
+    const detailData = await this.request("detail", { query: { lockId } });
+    const root = Array.isArray(detailData) ? detailData[0] : detailData;
+    const detail = at(root, this.config!.fields.detail);
+    const accessToken = await this.mediaToken();
+    const values = { accessToken, productId: at(detail, this.config!.fields.mediaProductId), deviceName: at(detail, this.config!.fields.mediaDeviceName), deviceId: lockId };
+    const signedUrls = new Map<string, string>();
+    for (let offset = 0; offset < candidates.length; offset += 40) {
+      const chunk = candidates.slice(offset, offset + 40);
+      const thumbnails = chunk.map((item) => this.config!.media.alarmThumbnailTemplate.replace("{pictureId}", item.pictureId));
+      const signedData = await this.request("thumbnail", { method: "POST", json: expand(this.config!.media.thumbnailRequest, { ...values, thumbnails }) as Record<string, unknown> });
+      const signedRoot = Array.isArray(signedData) ? signedData[0] : signedData;
+      const signedValue = at(signedRoot, this.config!.fields.signedThumbnails); const signed = Array.isArray(signedValue) ? signedValue : [];
+      chunk.forEach((item, index) => { const url = at(signed[index], this.config!.fields.signedThumbnailUrl); if (typeof url === "string" && url.startsWith("https://")) signedUrls.set(item.pictureId, url); });
+    }
+    return logs.map(({ pictureId, ...item }) => ({ ...item, image: pictureId ? signedUrls.get(pictureId) : undefined }));
+  }
+  async lockDynamics(lockId: string) { return this.signedLogPictures(lockId, await this.pagedLogs((page) => this.request("securityLogs", { query: { lockId, pageNumber: String(page), pageSize: "20", type: "1" } }))); }
+  async securityLogs(lockId: string) { return this.signedLogPictures(lockId, await this.pagedLogs((page) => this.request("securityLogs", { query: { lockId, pageNumber: String(page), pageSize: "20", type: "2" } }))); }
   operationLogs(lockId: string) { return this.pagedLogs((page) => this.request("operationLogs", { method: "POST", json: { lockId, pageNumber: String(page), pageSize: "20" } })); }
   async temporaryPasswordCount(lockId: string) { const raw = await this.request("temporaryPasswordCount", { query: { lockId } }); const root = Array.isArray(raw) ? raw[0] : raw; return { remaining: Number(at(root, this.config!.fields.temporaryPasswordCount) ?? 0) }; }
   async createTemporaryPassword(lockId: string) {
