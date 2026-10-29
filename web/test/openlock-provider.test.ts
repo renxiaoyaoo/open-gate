@@ -9,7 +9,7 @@ const bundle = { schemaVersion: 1,
 (bundle as { lock?: unknown }).lock = {
   baseUrl: "https://lock.provider.example", identityCipher: "private-identity", client: { appVersion: "1", clientType: "test" },
   routes: { loginToken: "/login/token", login: "/login/password", devices: "/devices", detail: "/detail", securityLogs: "/logs/security", operationLogs: "/logs/operation", temporaryPasswordCount: "/password/count", temporaryPasswordCreate: "/password/create", users: "/users", thumbnail: "/media/sign" },
-  media: { baseUrl: "https://media.provider.example", route: "/events", alarmThumbnailTemplate: "/alarms/{pictureId}.jpg", successPath: "result", successValue: "ok", auth: { route: "/session", appKey: "test-app", appSecret: "test-secret", openId: "test-user", action: "session-action", signatureExclude: ["Action"], tokenPath: "payload.token", expiryPath: "payload.expires" }, eventRequest: { credential: "{accessToken}", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}", context: "{context}" }, thumbnailRequest: { credential: "{accessToken}", action: "private-action", device: "{deviceId}", paths: "{thumbnails}" }, videoSignRequest: { credential: "{accessToken}", action: "sign-video", video: "{video}", expires: "{videoExpiresAt}" } },
+  media: { baseUrl: "https://media.provider.example", route: "/events", alarmThumbnailTemplate: "/alarms/{pictureId}.jpg", fallbackVideoSeconds: 12, successPath: "result", successValue: "ok", auth: { route: "/session", appKey: "test-app", appSecret: "test-secret", openId: "test-user", action: "session-action", signatureExclude: ["Action"], tokenPath: "payload.token", expiryPath: "payload.expires" }, eventRequest: { credential: "{accessToken}", product: "{productId}", device: "{deviceName}", from: "{startTime}", to: "{endTime}", context: "{context}" }, thumbnailRequest: { credential: "{accessToken}", action: "private-action", device: "{deviceId}", paths: "{thumbnails}" }, videoSignRequest: { credential: "{accessToken}", action: "sign-video", video: "{video}", expires: "{videoExpiresAt}" } },
   fields: { deviceId: "id", deviceName: "name", detail: "status", wifiName: "wifi", wifiSignal: "signal", battery: "battery", cameraBattery: "cameraBattery", batteryUpdatedAt: "updated", profileName: "nickname", logItems: "items", logTime: "time", logContent: "text", logPicture: "picture", temporaryPasswordCount: "remaining", mediaProductId: "product", mediaDeviceName: "mediaName", mediaEvents: "payload.events", mediaEventId: "eventId", mediaEventTime: "created", mediaEventEndTime: "ended", mediaThumbnail: "thumbnail", mediaVideo: "payload.video", mediaContext: "payload.context", mediaListOver: "payload.done", signedThumbnails: "signed", signedThumbnailUrl: "url", signedVideoUrl: "Response.SignedVideoURL" },
 };
 process.env.OPENHOME_PROVIDER_BUNDLE = JSON.stringify(bundle);
@@ -56,7 +56,7 @@ test("builds media requests from private templates and returns signed captures",
     if (url.includes("/events") && body.action === "sign-video") return Response.json({ Response: { SignedVideoURL: "http://videos.example/signed.m3u8" } });
     if (url.includes("/events")) return body.context
       ? Response.json({ result: "ok", payload: { done: true, events: [{ eventId: "second", created: 12, thumbnail: "b" }] } })
-      : Response.json({ result: "ok", payload: { context: "next", done: false, video: "https://videos.example/first.m3u8", events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", ended: 18, thumbnail: "a" }] } });
+      : Response.json({ result: "ok", payload: { context: "next", done: false, video: "https://videos.example/first.m3u8", events: [{ eventId: "first", created: "1970-01-01T00:00:10Z", ended: 10, thumbnail: "a" }] } });
     if (url.includes("/media/sign")) return Response.json({ status: 1, success: true, data: [{ signed: [{ url: Array.isArray(body.paths) && body.paths[0] === "a" ? "https://images.example/a" : "https://images.example/b" }] }] });
     return Response.json({ status: 1, success: true, data: [{ status: { product: "product-1", mediaName: "device-1", mediaId: "id-1" } }] });
   };
@@ -73,6 +73,7 @@ test("builds media requests from private templates and returns signed captures",
   assert.equal(calls[3].body.device, "7");
   assert.deepEqual(calls[3].body.paths, ["a"]);
   assert.equal(calls[4].body.action, "sign-video");
+  assert.match(String(calls[4].body.video), /endtime_epoch=22/);
   assert.equal(calls[6].body.context, "next");
   assert.equal(calls[7].body.credential, "fresh-media-token");
   assert.deepEqual(calls[7].body.paths, ["b"]);

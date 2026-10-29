@@ -29,7 +29,7 @@ export type ProviderBundle = {
     client: Record<string, string>;
     routes: Record<LockRoute, string>;
     media: {
-      baseUrl: string; route: string; eventRequest: Record<string, unknown>; thumbnailRequest: Record<string, unknown>; videoSignRequest?: Record<string, unknown>; successPath: string; successValue: string;
+      baseUrl: string; route: string; eventRequest: Record<string, unknown>; thumbnailRequest: Record<string, unknown>; videoSignRequest?: Record<string, unknown>; fallbackVideoSeconds?: number; successPath: string; successValue: string;
       alarmThumbnailTemplate: string;
       auth?: { route: string; appKey: string; appSecret: string; openId: string; action: string; signatureExclude: string[]; tokenPath: string; expiryPath: string };
     };
