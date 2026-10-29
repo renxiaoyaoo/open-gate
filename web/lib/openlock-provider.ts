@@ -187,7 +187,7 @@ export class OpenLockProvider {
   }
   private async logPage(load: () => Promise<unknown>, page: number) {
     const items = this.normalizeLogs(await load()).filter((item, index, list) => list.findIndex((candidate) => candidate.time === item.time && candidate.content === item.content) === index);
-    return { items, nextCursor: items.length >= 20 ? String(page + 1) : undefined };
+    return { items, nextCursor: items.length ? String(page + 1) : undefined };
   }
   private async signedLogPictures(lockId: string, logs: Array<{ time: string; content: string; pictureId?: string }>) {
     const candidates = logs.filter((item): item is typeof item & { pictureId: string } => Boolean(item.pictureId));

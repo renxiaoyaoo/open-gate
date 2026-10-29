@@ -95,9 +95,9 @@ test("normalizes device status, records, and temporary password capacity", async
     const provider = new OpenLockProvider({ token: "session", mediaToken: "media", mediaExpiresAt: Math.floor(Date.now() / 1000) + 3600 });
     assert.deepEqual(await provider.devices(), [{ id: "7", name: "Front" }]);
     assert.deepEqual(await provider.detail("7"), { name: "Front", wifiName: "Home", wifiSignal: "good", battery: "80", cameraBattery: "70", batteryUpdatedAt: "today" });
-    assert.deepEqual(await provider.lockDynamics("7"), { items: [{ time: "now", content: "opened", image: "https://signed.example/alarm.jpg" }], nextCursor: undefined });
+    assert.deepEqual(await provider.lockDynamics("7"), { items: [{ time: "now", content: "opened", image: "https://signed.example/alarm.jpg" }], nextCursor: "2" });
     assert.equal(new URL(requested.findLast((url) => url.includes("/logs/security"))!).searchParams.get("type"), "1");
-    assert.deepEqual(await provider.securityLogs("7"), { items: [{ time: "now", content: "opened", image: "https://signed.example/alarm.jpg" }], nextCursor: undefined });
+    assert.deepEqual(await provider.securityLogs("7"), { items: [{ time: "now", content: "opened", image: "https://signed.example/alarm.jpg" }], nextCursor: "2" });
     assert.equal(new URL(requested.findLast((url) => url.includes("/logs/security"))!).searchParams.get("type"), "2");
     assert.deepEqual(await provider.temporaryPasswordCount("7"), { remaining: 4 });
   } finally { globalThis.fetch = original; }
