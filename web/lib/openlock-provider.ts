@@ -139,10 +139,15 @@ export class OpenLockProvider {
 
   private normalizeLogs(raw: unknown) {
     const groups = Array.isArray(raw) ? raw : [];
-    return groups.flatMap((group) => { const items = at(group, this.config!.fields.logItems); const date = String(at(group, this.config!.fields.logDate || "logDate") ?? ""); return Array.isArray(items) ? items.map((item) => { const time = String(at(item, this.config!.fields.logTime) ?? ""); return { time: date && !time.includes(date) ? `${date} ${time}`.trim() : time, content: String(at(item, this.config!.fields.logContent) ?? "") }; }) : []; });
+    return groups.flatMap((group) => { const items = at(group, this.config!.fields.logItems); const date = String(at(group, this.config!.fields.logDate || "logDate") ?? ""); return Array.isArray(items) ? items.map((item) => {
+      const time = String(at(item, this.config!.fields.logTime) ?? "");
+      const picture = this.config!.fields.logPicture ? at(item, this.config!.fields.logPicture) : undefined;
+      const image = typeof picture === "string" && /^\d+$/.test(picture) ? this.config!.media.alarmImageTemplate.replace("{pictureId}", encodeURIComponent(picture)) : undefined;
+      return { time: date && !time.includes(date) ? `${date} ${time}`.trim() : time, content: String(at(item, this.config!.fields.logContent) ?? ""), image };
+    }) : []; });
   }
   private async pagedLogs(load: (page: number) => Promise<unknown>) {
-    const result: Array<{ time: string; content: string }> = []; let previous = "";
+    const result: Array<{ time: string; content: string; image?: string }> = []; let previous = "";
     for (let page = 1; page <= 10; page += 1) {
       const items = this.normalizeLogs(await load(page));
       const signature = JSON.stringify(items);

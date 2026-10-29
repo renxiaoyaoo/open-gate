@@ -30,12 +30,13 @@ export type ProviderBundle = {
     routes: Record<LockRoute, string>;
     media: {
       baseUrl: string; route: string; eventRequest: Record<string, unknown>; thumbnailRequest: Record<string, unknown>; successPath: string; successValue: string;
+      alarmImageTemplate: string;
       auth?: { route: string; appKey: string; appSecret: string; openId: string; action: string; signatureExclude: string[]; tokenPath: string; expiryPath: string };
     };
     fields: {
       deviceId: string; deviceName: string; detail: string; wifiName: string; wifiSignal: string;
       battery: string; cameraBattery: string; batteryUpdatedAt: string; profileName: string;
-      logItems: string; logDate?: string; logTime: string; logContent: string; temporaryPasswordCount: string;
+      logItems: string; logDate?: string; logTime: string; logContent: string; logPicture?: string; temporaryPasswordCount: string;
       mediaProductId: string; mediaDeviceName: string; mediaEvents: string;
       mediaEventId: string; mediaEventTime: string; mediaEventType?: string; mediaThumbnail: string; mediaVideo?: string; signedThumbnails: string; signedThumbnailUrl: string;
     };
@@ -58,7 +59,7 @@ export function isProviderBundle(value: unknown): value is ProviderBundle {
   if (bundle.schemaVersion !== 1 || !access || !device) return false;
   if (!hasStrings(access.baseUrls, ["mobile", "app", "gateway"]) || !hasStrings(access.credentials, ["appId", "appSecret", "encryptionKey", "signingKey"]) || !hasStrings(access.client, ["version", "channel", "vendor", "versionCode", "platform"]) || !hasStrings(access.routes, ["login", "profile", "communities", "homeItems", "allItems", "sortItems", "operate", "sms"]) || !Array.isArray(access.passwordModels)) return false;
   if (!hasStrings(device, ["baseUrl"]) || !hasStrings(device.credentials, ["appId", "appKey", "iotKey", "hmacKey", "deviceId"]) || !hasStrings(device.client, ["version", "secretVersion", "platformId", "clientType", "language", "source", "module"]) || !hasStrings(device.routes, ["sms", "login", "homes", "devices", "templateMap", "templateGet", "properties", "action"]) || !hasStrings(device.properties, ["program", "power"]) || !hasStrings(device.actions, ["start", "pause", "schedule", "cancelSchedule"])) return false;
-  if (lock && (!hasStrings(lock, ["baseUrl", "identityCipher"]) || !hasStrings(lock.routes, ["loginToken", "login", "devices", "detail", "securityLogs", "operationLogs", "temporaryPasswordCount", "temporaryPasswordCreate", "users", "thumbnail"]) || !hasStrings(lock.media, ["baseUrl", "route", "successPath", "successValue"]) || !hasStrings(lock.fields, ["deviceId", "deviceName", "detail", "wifiName", "wifiSignal", "battery", "cameraBattery", "batteryUpdatedAt", "profileName", "logItems", "logTime", "logContent", "temporaryPasswordCount", "mediaProductId", "mediaDeviceName", "mediaEvents", "mediaEventId", "mediaEventTime", "mediaThumbnail", "signedThumbnails", "signedThumbnailUrl"]))) return false;
+  if (lock && (!hasStrings(lock, ["baseUrl", "identityCipher"]) || !hasStrings(lock.routes, ["loginToken", "login", "devices", "detail", "securityLogs", "operationLogs", "temporaryPasswordCount", "temporaryPasswordCreate", "users", "thumbnail"]) || !hasStrings(lock.media, ["baseUrl", "route", "successPath", "successValue", "alarmImageTemplate"]) || !lock.media.alarmImageTemplate.startsWith("https://") || !lock.media.alarmImageTemplate.includes("{pictureId}") || !hasStrings(lock.fields, ["deviceId", "deviceName", "detail", "wifiName", "wifiSignal", "battery", "cameraBattery", "batteryUpdatedAt", "profileName", "logItems", "logTime", "logContent", "temporaryPasswordCount", "mediaProductId", "mediaDeviceName", "mediaEvents", "mediaEventId", "mediaEventTime", "mediaThumbnail", "signedThumbnails", "signedThumbnailUrl"]))) return false;
   return true;
 }
 
