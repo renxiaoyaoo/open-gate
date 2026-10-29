@@ -20,7 +20,7 @@ const temperature = (defaultIndex = 0): DryerProgramParameter => ({ property: "t
 const dryness = (values = [1, 2, 3], defaultIndex = values.includes(1) ? 1 : 0): DryerProgramParameter => ({ property: "dry_level", name: "烘干度", values: values.map((value) => ({ value, label: ({ 1: "即熨", 2: "即穿", 3: "储藏" } as Record<number, string>)[value] })), defaultIndex });
 const sanitize = (values = [0, 1], labels = ["关闭", "开启"], defaultIndex = 0): DryerProgramParameter => ({ property: "dry_temp", name: "多维除菌", values: values.map((value, index) => ({ value, label: labels[index] })), defaultIndex });
 const crease: DryerProgramParameter = { property: "crease_resist_old", name: "智能防皱", values: [{ value: 0, label: "关闭" }, { value: 1, label: "开启" }], defaultIndex: 0 };
-const time = (values: number[], defaultIndex: number): DryerProgramParameter => ({ property: "dry_time_new", name: "时间", values: values.map((value) => ({ value, label: `${value} 分` })), defaultIndex });
+const time = (values: number[], defaultIndex: number): DryerProgramParameter => ({ property: "dry_time_new", name: "时间", values: values.map((value) => ({ value, label: `+${value}分` })), defaultIndex });
 const standard = (drynessValues = [1, 2, 3], dryDefault?: number, temperatureDefault = 0): DryerProgramParameter[] => [temperature(temperatureDefault), dryness(drynessValues, dryDefault), sanitize(), crease];
 
 // Names, grouping, order and displayed durations match the target device's
@@ -47,6 +47,9 @@ export const DRYER_PROGRAMS: DryerProgram[] = [
   { value: 13, name: "内衣", group: "特定材质", minutes: 100, icon: "underwear", parameters: standard([2, 3], 0) },
   { value: 12, name: "运动服", group: "特定材质", minutes: 115, icon: "sport", parameters: standard([2, 3], 0) },
   { value: 3, name: "牛仔", group: "特定材质", minutes: 160, icon: "denim", parameters: standard([2, 3], 0) },
+  // The official plug-in presents this recommended DIY separately while
+  // reusing the verified sanitizing-cycle command value.
+  { value: 83, name: "花粉过敏烘", group: "DIY", minutes: 180, icon: "sanitize", parameters: [] },
 ];
 
 export const DRYER_PROGRAM_IDS = new Set(DRYER_PROGRAMS.map(({ value }) => value));
