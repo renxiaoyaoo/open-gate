@@ -21,21 +21,23 @@ export async function callOpenLock(operation: string, request: Request) {
   const stored = await storedSession(request, url.searchParams.get("accountId") || undefined);
   const provider = new OpenLockProvider(stored.session);
   const lockId = url.searchParams.get("lockId") || "";
+  const cursor = url.searchParams.get("cursor") || "";
+  const page = Math.max(1, Number.parseInt(cursor || "1", 10) || 1);
   let data: unknown;
   if (operation === "profile") { const response = Response.json({ ok: true, data: { accountId: stored.accountId, displayName: stored.session.displayName } }); return stored.migrated ? clearLegacy(response) : response; }
   else if (operation === "devices") data = await provider.devices();
   else if (!lockId) throw new Error("缺少设备标识");
   else if (operation === "detail") data = await provider.detail(lockId);
-  else if (operation === "lock-dynamics") data = await provider.lockDynamics(lockId);
-  else if (operation === "security-logs") data = await provider.securityLogs(lockId);
-  else if (operation === "operation-logs") data = await provider.operationLogs(lockId);
+  else if (operation === "lock-dynamics") data = await provider.lockDynamics(lockId, page);
+  else if (operation === "security-logs") data = await provider.securityLogs(lockId, page);
+  else if (operation === "operation-logs") data = await provider.operationLogs(lockId, page);
   else if (operation === "temporary-password") data = await provider.temporaryPasswordCount(lockId);
   else if (operation === "temporary-password-create") {
     if (request.method !== "POST") throw new Error("临时密码生成必须使用 POST");
     data = await provider.createTemporaryPassword(lockId);
   }
   else if (operation === "captures") {
-    data = await provider.captures(lockId);
+    data = await provider.captures(lockId, cursor);
     const refreshed = provider.sessionState();
     if (refreshed) await persistProviderSession("openlock", stored.accountId, refreshed);
   }
